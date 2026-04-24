@@ -1,4 +1,4 @@
-# Multerser 🚀
+# Multerser 
 ### Premium Expo Authentication & Theme Starter
 
 Multerser is a professional-grade React Native boilerplate built with **Expo SDK 54**. It features a stunning, high-conversion authentication suite and a global theme system, designed to serve as a rock-solid foundation for modern mobile applications.
@@ -11,18 +11,18 @@ Multerser is a professional-grade React Native boilerplate built with **Expo SDK
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- 🔐 **Complete Auth Suite**: High-fidelity Login, Sign Up, and Forgot Password screens.
-- 🎨 **Premium UI/UX**: Custom design system based on modern standards with smooth transitions and glassmorphism elements.
-- 🌓 **Global Theme Support**: Fully integrated Light and Dark modes using a centralized `ThemeContext`.
-- 📁 **Expo Router**: Modern file-based routing with strict TypeScript path validation.
-- 📱 **Responsive Design**: Optimized for all screen sizes with robust keyboard handling and safe area management.
-- 🛠️ **Developer Friendly**: Pre-configured with aliases (`@/`), offline mode support, and clean project structure.
+- **Complete Auth Suite**: High-fidelity Login, Sign Up, and Forgot Password screens.
+- **Premium UI/UX**: Custom design system based on modern standards with smooth transitions and glassmorphism elements.
+- **Global Theme Support**: Fully integrated Light and Dark modes using a centralized `ThemeContext`.
+- **Expo Router**: Modern file-based routing with strict TypeScript path validation.
+- **Responsive Design**: Optimized for all screen sizes with robust keyboard handling and safe area management.
+- **Developer Friendly**: Pre-configured with aliases (`@/`), offline mode support, and clean project structure.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [Expo](https://expo.dev/) (SDK 54)
 - **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (Typed Routes)
@@ -32,7 +32,7 @@ Multerser is a professional-grade React Native boilerplate built with **Expo SDK
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (LTS)
@@ -57,7 +57,7 @@ npm start
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 src/
@@ -72,13 +72,8 @@ src/
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 - **Theme Settings**: Modify colors in `src/context/ThemeContext.tsx`.
 - **App Metadata**: Update name, slug, and versions in `app.json`.
 - **Environment**: Global flags like `EXPO_OFFLINE` are managed in the `.env` file.
-
----
-
-## 📄 License
-This project is licensed under the MIT License.
