@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/context/ThemeContext';
+import Toast from 'react-native-toast-message';
 
 export default function RootLayout() {
   return (
@@ -8,6 +9,7 @@ export default function RootLayout() {
         <Stack.Screen name='(auth)' />
         <Stack.Screen name='(main)' />
       </Stack>
+      <Toast />
     </ThemeProvider>
   );
 }

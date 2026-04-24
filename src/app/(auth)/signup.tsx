@@ -9,6 +9,7 @@ import {
 import { Link, router } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
 import { Ionicons, AntDesign, FontAwesome } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 export default function SignupScreen() {
   const [name, setName] = useState('');
@@ -17,6 +18,13 @@ export default function SignupScreen() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSignup = () => {
+    Toast.show({
+      type: 'success',
+      text1: 'Registration Successful',
+      text2: 'Account created! Welcome to the community! 🎊',
+      position: 'bottom',
+      bottomOffset: 60,
+    });
     router.replace('/(main)/home');
   };
 
@@ -171,12 +179,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ececec',
     borderRadius: 15,
     paddingHorizontal: 20,
-    height: 58,
+    height: 62,
   },
   input: {
     flex: 1,
     color: '#000',
-    fontSize: 15,
+    fontSize: 16,
+    paddingVertical: 10,
+    marginRight: 10,
   },
   row: {
     flexDirection: 'row',
