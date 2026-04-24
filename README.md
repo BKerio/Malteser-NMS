@@ -1,7 +1,7 @@
 # Multerser 
 ### Premium Expo Authentication & Theme Starter
 
-Multerser is a professional-grade React Native boilerplate built with **Expo SDK 54**. It features a stunning, high-conversion authentication suite and a global theme system, designed to serve as a rock-solid foundation for modern mobile applications.
+Multerser is a professional-grade React Native applicaion built with **Expo SDK 54**. It features a stunning, high-conversion authentication suite and a global theme system, designed to serve as a rock-solid foundation for modern mobile applications.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Expo-54.0.0-black?style=for-the-badge&logo=expo" />
