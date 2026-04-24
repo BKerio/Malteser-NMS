@@ -26,7 +26,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
+          <View style={styles.content}>
             {children}
           </View>
         </ScrollView>
@@ -38,25 +38,19 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e6f3fb', // Light blue background from image
+    backgroundColor: '#f8f9fa',
   },
   flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 30,
+    paddingTop: 40,
+    paddingBottom: 40,
     justifyContent: 'center',
-    padding: 20,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 30,
-    padding: 24,
+  content: {
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
   },
 });

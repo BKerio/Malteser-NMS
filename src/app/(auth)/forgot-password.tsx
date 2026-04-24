@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -20,54 +20,53 @@ export default function ForgotPasswordScreen() {
 
   return (
     <AuthWrapper>
-      <View style={styles.container}>
-        <View style={styles.iconCircle}>
-          <MaterialCommunityIcons name="lock-reset" size={50} color="#0a1d37" />
-        </View>
-        
+      <View style={styles.header}>
         <Text style={styles.title}>Recovery</Text>
         <Text style={styles.subtitle}>
           {submitted 
             ? 'Check your inbox for instructions' 
             : 'Enter your email to reset password'}
         </Text>
+      </View>
 
-        <View style={styles.form}>
-          {!submitted ? (
-            <>
+      <View style={styles.form}>
+        {!submitted ? (
+          <>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email</Text>
               <View style={styles.inputContainer}>
-                <MaterialCommunityIcons name="email" size={20} color="#000" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Email Address"
-                  placeholderTextColor="#94a3b8"
+                  placeholder="Enter you email"
+                  placeholderTextColor="#999"
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
                 />
               </View>
-
-              <TouchableOpacity style={styles.button} onPress={handleReset}>
-                <Text style={styles.buttonText}>Send Reset Link</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={styles.successContainer}>
-              <Text style={styles.successText}>
-                We've sent a link to {email}. Follow the instructions in the email to reset your password.
-              </Text>
             </View>
-          )}
 
-          <View style={styles.footer}>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity style={styles.backButton}>
-                <Ionicons name="arrow-back" size={20} color="#334155" />
-                <Text style={styles.backText}>Back to Sign In</Text>
-              </TouchableOpacity>
-            </Link>
+            <TouchableOpacity style={styles.button} onPress={handleReset}>
+              <Text style={styles.buttonText}>Send Reset Link</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.successContainer}>
+            <Ionicons name="checkmark-circle" size={80} color="#4cd964" />
+            <Text style={styles.successText}>
+              We've sent a link to {email}. Follow the instructions in the email to reset your password.
+            </Text>
           </View>
+        )}
+
+        <View style={styles.footer}>
+          <Link href="/(auth)/login" asChild>
+            <TouchableOpacity style={styles.backButton}>
+              <Ionicons name="arrow-back" size={20} color="#000" />
+              <Text style={styles.backText}>Back to Sign in</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
       </View>
     </AuthWrapper>
@@ -75,48 +74,43 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  header: {
+    marginBottom: 45,
     alignItems: 'center',
-    width: '100%',
-  },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#f1f5f9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#334155',
-    marginBottom: 8,
+    color: '#000',
+    marginBottom: 10,
   },
   subtitle: {
     fontSize: 15,
-    color: '#64748b',
+    color: '#333',
     textAlign: 'center',
-    marginBottom: 30,
     lineHeight: 22,
+    paddingHorizontal: 20,
   },
   form: {
     width: '100%',
   },
+  inputGroup: {
+    marginBottom: 25,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 12,
+    marginLeft: 2,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 18,
-    borderWidth: 1.5,
-    borderColor: '#334155',
-    height: 65,
-  },
-  inputIcon: {
-    marginRight: 12,
+    backgroundColor: '#ececec',
+    borderRadius: 15,
+    paddingHorizontal: 20,
+    height: 58,
   },
   input: {
     flex: 1,
@@ -124,13 +118,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   button: {
-    backgroundColor: '#0a1d37',
-    borderRadius: 12,
-    height: 60,
+    backgroundColor: '#000',
+    borderRadius: 15,
+    height: 58,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 25,
+    marginBottom: 30,
   },
   buttonText: {
     color: '#fff',
@@ -138,17 +131,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   successContainer: {
-    paddingVertical: 10,
-    marginBottom: 20,
+    alignItems: 'center',
+    paddingVertical: 20,
   },
   successText: {
-    color: '#64748b',
+    color: '#333',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 24,
+    marginTop: 20,
   },
   footer: {
-    marginTop: 20,
+    marginTop: 40,
     alignItems: 'center',
   },
   backButton: {
@@ -156,7 +150,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backText: {
-    color: '#334155',
+    color: '#000',
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,

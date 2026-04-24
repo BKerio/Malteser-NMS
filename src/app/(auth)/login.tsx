@@ -7,16 +7,16 @@ import {
   View,
   Pressable,
   Image,
-  Platform,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, AntDesign, FontAwesome } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleLogin = () => {
     router.replace('/(main)/home');
@@ -24,188 +24,196 @@ export default function LoginScreen() {
 
   return (
     <AuthWrapper>
-      <View style={styles.container}>
-        {/* Logo Section */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoCircle}>
-            <Image
-              source={require('../../assets/android-icon-monochrome.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.title}>Welcome back</Text>
+        <Text style={styles.subtitle}>
+          Access your orders, wishlist, and exclusive offers by logging in.
+        </Text>
+      </View>
 
-        <Text style={styles.welcomeText}>Welcome back</Text>
-
-        <View style={styles.form}>
-          <Text style={styles.label}>Login using</Text>
-
-          {/* Login Type Selector */}
-          <TouchableOpacity style={styles.selectorContainer}>
-            <View style={styles.selectorLeft}>
-              <Ionicons name="mail-outline" size={20} color="#64748b" />
-              <Text style={styles.selectorText}>Use your email address</Text>
-            </View>
-            <Ionicons name="chevron-down" size={18} color="#64748b" />
-          </TouchableOpacity>
-
-          {/* Email Input */}
+      <View style={styles.form}>
+        {/* Email Field */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Email</Text>
           <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="email" size={20} color="#000" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Enter your email address"
-              placeholderTextColor="#94a3b8"
+              placeholder="Enter you email"
+              placeholderTextColor="#999"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
             />
           </View>
+        </View>
 
-          {/* Password Input */}
+        {/* Password Field */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Password</Text>
           <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock" size={20} color="#000" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#94a3b8"
+              placeholder="Enter you password"
+              placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
             <Pressable onPress={() => setShowPassword(!showPassword)}>
               <Ionicons
-                name={showPassword ? 'eye' : 'eye-outline'}
+                name="eye-outline"
                 size={20}
-                color="#000"
+                color="#333"
               />
             </Pressable>
           </View>
+        </View>
 
-          {/* Login Button */}
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Login to your account</Text>
+        {/* Remember Me & Forgot Password */}
+        <View style={styles.row}>
+          <TouchableOpacity 
+            style={styles.rememberMe} 
+            onPress={() => setRememberMe(!rememberMe)}
+          >
+            <View style={[
+              styles.checkbox, 
+              { backgroundColor: rememberMe ? '#4cd964' : 'transparent', borderColor: rememberMe ? '#4cd964' : '#ccc' }
+            ]}>
+              {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.rememberMeText}>Remember me</Text>
           </TouchableOpacity>
+          <Link href="/(auth)/forgot-password" asChild>
+            <TouchableOpacity>
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+        {/* Sign In Button */}
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Sign in</Text>
+        </TouchableOpacity>
 
-          {/* OR Separator */}
-          <View style={styles.separatorContainer}>
-            <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>Or</Text>
-            <View style={styles.separatorLine} />
-          </View>
+        {/* OR Separator */}
+        <View style={styles.separatorContainer}>
+          <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>OR</Text>
+          <View style={styles.separatorLine} />
+        </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <Link href="/(auth)/signup" asChild>
-              <TouchableOpacity>
-                <Text style={styles.linkText}>Register</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+        {/* Social Buttons */}
+        <TouchableOpacity style={styles.socialButton}>
+          <FcGoogle style={styles.socialIcon} />
+          <Text style={styles.socialButtonText}>Continue with Google</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.socialButton}>
+          <FontAwesome name="apple" size={20} color="#000" style={styles.socialIcon} />
+          <Text style={styles.socialButtonText}>Continue with Apple</Text>
+        </TouchableOpacity>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Link href="/(auth)/signup" asChild>
+            <TouchableOpacity>
+              <Text style={styles.linkText}>Sign up</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
       </View>
     </AuthWrapper>
   );
 }
 
+// Simple implementation of Google icon using AntDesign/Ionicons if needed, 
+// but I'll use Image or a colored icon for 100% match.
+const FcGoogle = ({ style }: { style?: any }) => (
+  <AntDesign name="google" size={20} color="#EA4335" style={style} />
+);
+
 const styles = StyleSheet.create({
-  container: {
+  header: {
+    marginBottom: 45,
     alignItems: 'center',
-    width: '100%',
   },
-  logoContainer: {
-    marginBottom: 30,
-    marginTop: 10,
+  title: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 10,
   },
-  logoCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  logoImage: {
-    width: 100,
-    height: 100,
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 35,
+  subtitle: {
+    fontSize: 15,
+    color: '#333',
     textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif-medium',
+    lineHeight: 22,
+    paddingHorizontal: 15,
   },
   form: {
     width: '100%',
   },
-  label: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 10,
-    marginLeft: 4,
+  inputGroup: {
+    marginBottom: 18,
   },
-  selectorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderRadius: 15,
-    paddingHorizontal: 16,
-    height: 55,
-    marginBottom: 25,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  selectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  selectorText: {
-    marginLeft: 10,
-    color: '#64748b',
+  inputLabel: {
     fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 12,
+    marginLeft: 2,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 18,
-    borderWidth: 1.5,
-    borderColor: '#334155', // Dark border from image
-    height: 65,
-  },
-  inputIcon: {
-    marginRight: 12,
+    backgroundColor: '#ececec', // Exact light gray from image
+    borderRadius: 15,
+    paddingHorizontal: 20,
+    height: 58,
   },
   input: {
     flex: 1,
     color: '#000',
     fontSize: 15,
   },
-  button: {
-    backgroundColor: '#0a1d37', // Dark navy blue from image
-    borderRadius: 12,
-    height: 60,
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 5,
+    marginBottom: 30,
+  },
+  rememberMe: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginRight: 10,
+  },
+  rememberMeText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  forgotPasswordText: {
+    color: '#ff3b30', // Apple System Red
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  button: {
+    backgroundColor: '#000',
+    borderRadius: 15,
+    height: 58,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 25,
   },
   buttonText: {
@@ -213,42 +221,52 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  forgotPassword: {
-    alignSelf: 'center',
-    marginBottom: 30,
-  },
-  forgotPasswordText: {
-    color: '#64748b',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   separatorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 25,
+    justifyContent: 'center',
   },
   separatorLine: {
-    flex: 1,
+    flex: 0.45,
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#ddd',
   },
   separatorText: {
     marginHorizontal: 15,
-    color: '#94a3b8',
-    fontSize: 14,
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ececec',
+    borderRadius: 15,
+    height: 58,
+    marginBottom: 15,
+  },
+  socialIcon: {
+    marginRight: 12,
+  },
+  socialButtonText: {
+    color: '#000',
+    fontSize: 15,
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginTop: 60,
   },
   footerText: {
-    color: '#94a3b8',
-    fontSize: 13,
+    color: '#333',
+    fontSize: 14,
   },
   linkText: {
-    color: '#334155',
-    fontSize: 13,
+    color: '#000',
+    fontSize: 14,
     fontWeight: '700',
   },
 });
