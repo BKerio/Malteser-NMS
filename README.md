@@ -1,11 +1,11 @@
-# MacroZone - React Native Crash Course
+# Multeser - React Native Crash Course
 
 A macro tracking app built with React Native and Expo as part of the [React Native Crash Course](https://youtu.be/XCifkDC0yXA) on YouTube by Traversy Media. Track your daily meals and monitor your macros (calories, protein, carbs, fat) with a clean, modern UI.
 
 > **📝 Following along with the course?** Check out the [STEPS.md](STEPS.md) file for the complete step-by-step guide with all the code for each section. The drawing from the video is also in this repo.
 
 <p align="center">
-  <img src="assets/screen.png" alt="MacroZone App" width="300" />
+  <img src="assets/screen.png" alt="Multiser " width="300" />
 </p>
 
 ## Features
@@ -38,8 +38,8 @@ A macro tracking app built with React Native and Expo as part of the [React Nati
 ### Installation
 
 ```bash
-git clone https://github.com/bradtraversy/macrozone.git
-cd macrozone
+git clone https://github.com/BKerio/Malteser-NMS.git
+cd Malteser-NMS
 npm install
 ```
 
