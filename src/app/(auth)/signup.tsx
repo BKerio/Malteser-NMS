@@ -14,6 +14,7 @@ import Toast from 'react-native-toast-message';
 export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -64,6 +65,21 @@ export default function SignupScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+            />
+          </View>
+        </View>
+        {/* Phone Field */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Phone</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter you phone number"
+              placeholderTextColor="#999"
+              value={phone}
+              onChangeText={setPhone}
+              autoCapitalize="none"
+              keyboardType="phone-pad"
             />
           </View>
         </View>
