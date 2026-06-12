@@ -1,282 +1,157 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Pressable,
-  Image,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import AuthWrapper from '@/components/AuthWrapper';
-import { Ionicons, AntDesign, FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
+import { getErrorMessage } from '@/api/client';
+
+const MAIN_HOME = '/(main)/(tabs)' as Href;
 
 export default function LoginScreen() {
+  const { login } = useAuth();
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = () => {
-    Toast.show({
-      type: 'success',
-      text1: 'Login Successful',
-      text2: 'Welcome back to Multerser! 👋',
-      position: 'bottom',
-      bottomOffset: 60,
-    });
-    router.replace('/(main)/home');
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Toast.show({ type: 'error', text1: 'Enter email and password', position: 'bottom' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      router.replace(MAIN_HOME);
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Login failed',
+        text2: getErrorMessage(err),
+        position: 'bottom',
+        bottomOffset: 60,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <AuthWrapper>
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>
-          Access your orders, wishlist, and exclusive offers by logging in.
+        <View style={[styles.logoCircle, { backgroundColor: colors.locationBg }]}>
+          <Ionicons name="medical" size={32} color={colors.primary} />
+        </View>
+        <Text style={[styles.title, { color: colors.text }]}>NMS Responder</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Sign in with your crew credentials to view assignments and update response status.
         </Text>
       </View>
 
       <View style={styles.form}>
-        {/* Email Field */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Email</Text>
-          <View style={styles.inputContainer}>
+          <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
+          <View style={[styles.inputContainer, { backgroundColor: colors.inputBg }]}>
             <TextInput
-              style={styles.input}
-              placeholder="Enter you email"
-              placeholderTextColor="#999"
+              style={[styles.input, { color: colors.inputText }]}
+              placeholder="you@agency.org"
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              autoComplete="email"
             />
           </View>
         </View>
 
-        {/* Password Field */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Password</Text>
-          <View style={styles.inputContainer}>
+          <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
+          <View style={[styles.inputContainer, { backgroundColor: colors.inputBg }]}>
             <TextInput
-              style={styles.input}
-              placeholder="Enter you password"
-              placeholderTextColor="#999"
+              style={[styles.input, { color: colors.inputText }]}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              autoComplete="password"
             />
             <Pressable onPress={() => setShowPassword(!showPassword)}>
               <Ionicons
-                name="eye-outline"
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={20}
-                color="#333"
+                color={colors.textSecondary}
               />
             </Pressable>
           </View>
         </View>
 
-        {/* Remember Me & Forgot Password */}
-        <View style={styles.row}>
-          <TouchableOpacity 
-            style={styles.rememberMe} 
-            onPress={() => setRememberMe(!rememberMe)}
-          >
-            <View style={[
-              styles.checkbox, 
-              { backgroundColor: rememberMe ? '#4cd964' : 'transparent', borderColor: rememberMe ? '#4cd964' : '#ccc' }
-            ]}>
-              {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
-            </View>
-            <Text style={styles.rememberMeText}>Remember me</Text>
-          </TouchableOpacity>
-          <Link href="/(auth)/forgot-password" asChild>
-            <TouchableOpacity>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-
-        {/* Sign In Button */}
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Sign in</Text>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.brandNavy }, isSubmitting && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Sign in</Text>
+          )}
         </TouchableOpacity>
 
-        {/* OR Separator */}
-        <View style={styles.separatorContainer}>
-          <View style={styles.separatorLine} />
-          <Text style={styles.separatorText}>OR</Text>
-          <View style={styles.separatorLine} />
-        </View>
-
-        {/* Social Buttons */}
-        <TouchableOpacity style={styles.socialButton}>
-          <FcGoogle style={styles.socialIcon} />
-          <Text style={styles.socialButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.socialButton}>
-          <FontAwesome name="apple" size={20} color="#000" style={styles.socialIcon} />
-          <Text style={styles.socialButtonText}>Continue with Apple</Text>
-        </TouchableOpacity>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <Link href="/(auth)/signup" asChild>
-            <TouchableOpacity>
-              <Text style={styles.linkText}>Sign up</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
+        <Text style={[styles.hint, { color: colors.textMuted }]}>
+          For Drivers, EMTs, and Nurses only. Contact your dispatcher if you need an account.
+        </Text>
       </View>
     </AuthWrapper>
   );
 }
 
-// Simple implementation of Google icon using AntDesign/Ionicons if needed, 
-// but I'll use Image or a colored icon for 100% match.
-const FcGoogle = ({ style }: { style?: any }) => (
-  <AntDesign name="google" size={20} color="#EA4335" style={style} />
-);
-
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 45,
+  header: { marginBottom: 40, alignItems: 'center' },
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#333',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 15,
-  },
-  form: {
-    width: '100%',
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 12,
-    marginLeft: 2,
-  },
+  title: { fontSize: 26, fontWeight: '700', marginBottom: 10 },
+  subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22, paddingHorizontal: 10 },
+  form: { width: '100%' },
+  inputGroup: { marginBottom: 18 },
+  inputLabel: { fontSize: 14, fontWeight: '700', marginBottom: 10, marginLeft: 2 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ececec',
     borderRadius: 15,
     paddingHorizontal: 20,
-    height: 62, // Increased height
+    height: 58,
   },
-  input: {
-    flex: 1,
-    color: '#000',
-    fontSize: 16, // Slightly larger font for readability
-    paddingVertical: 10,
-    marginRight: 10, // Ensure space before the eye icon
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 5,
-    marginBottom: 30,
-  },
-  rememberMe: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  rememberMeText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  forgotPasswordText: {
-    color: '#ff3b30', // Apple System Red
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  input: { flex: 1, fontSize: 16, paddingVertical: 10, marginRight: 10 },
   button: {
-    backgroundColor: '#000',
     borderRadius: 15,
     height: 58,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 25,
+    marginTop: 10,
+    marginBottom: 20,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  separatorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 25,
-    justifyContent: 'center',
-  },
-  separatorLine: {
-    flex: 0.45,
-    height: 1,
-    backgroundColor: '#ddd',
-  },
-  separatorText: {
-    marginHorizontal: 15,
-    color: '#000',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ececec',
-    borderRadius: 15,
-    height: 58,
-    marginBottom: 15,
-  },
-  socialIcon: {
-    marginRight: 12,
-  },
-  socialButtonText: {
-    color: '#000',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 60,
-  },
-  footerText: {
-    color: '#333',
-    fontSize: 14,
-  },
-  linkText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  buttonDisabled: { opacity: 0.7 },
+  buttonText: { fontSize: 16, fontWeight: '600' },
+  hint: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
 });

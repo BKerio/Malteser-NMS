@@ -1,23 +1,16 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const { height } = Dimensions.get('window');
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
 }
 
 export default function AuthWrapper({ children }: AuthWrapperProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
@@ -26,9 +19,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.content}>
-            {children}
-          </View>
+          <View style={styles.content}>{children}</View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -36,13 +27,8 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  flex: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  flex: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 30,
@@ -50,7 +36,5 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     justifyContent: 'center',
   },
-  content: {
-    width: '100%',
-  },
+  content: { width: '100%' },
 });

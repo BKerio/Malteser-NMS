@@ -1,79 +1,46 @@
-# Multerser 
-### Premium Expo Authentication & Theme Starter
+# NMS Responder
 
-Multerser is a professional-grade React Native application built with **Expo SDK 54**. It features a stunning, high-conversion authentication suite and a global theme system, designed to serve as a rock-solid foundation for modern mobile applications.
+Mobile app for **Drivers**, **EMTs**, and **Nurses** in the NMS Emergency Operations Center system.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Expo-54.0.0-black?style=for-the-badge&logo=expo" />
-  <img src="https://img.shields.io/badge/React_Native-0.81.0-blue?style=for-the-badge&logo=react" />
-  <img src="https://img.shields.io/badge/TypeScript-Ready-blue?style=for-the-badge&logo=typescript" />
-</p>
+## Features
 
----
+- JWT login against the NMS backend (`POST /auth/login`)
+- View active crew assignment (`GET /tasks/active`)
+- Advance task status through the response lifecycle (`PATCH /tasks/:id/status`)
+- Submit pre-hospital clinical notes (`POST /tasks/:id/patient-data`)
+- Automatic GPS location sync for drivers (`POST /fleet/location`)
+- Real-time task updates via Socket.io (`task:assigned`, `task:updated`)
 
-## Key Features
+## Setup
 
-- **Complete Auth Suite**: High-fidelity Login, Sign Up, and Forgot Password screens.
-- **Premium UI/UX**: Custom design system based on modern standards with smooth transitions and glassmorphism elements.
-- **Global Theme Support**: Fully integrated Light and Dark modes using a centralized `ThemeContext`.
-- **Expo Router**: Modern file-based routing with strict TypeScript path validation.
-- **Responsive Design**: Optimized for all screen sizes with robust keyboard handling and safe area management.
-- **Developer Friendly**: Pre-configured with aliases (`@/`), offline mode support, and clean project structure.
+```bash
+cd mobileapp
+npm install
+cp .env.example .env
+```
 
----
+### API URL
 
-## Tech Stack
+| Environment | `EXPO_PUBLIC_API_URL` |
+|-------------|------------------------|
+| Android emulator | `http://10.0.2.2:3000` (default in dev) |
+| iOS simulator | `http://localhost:3000` (default in dev) |
+| Physical device | `http://<your-computer-lan-ip>:3000` |
 
-- **Framework**: [Expo](https://expo.dev/) (SDK 54)
-- **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (Typed Routes)
-- **Styling**: Vanilla React Native StyleSheet with global theme tokens
-- **Icons**: [Expo Vector Icons](https://docs.expo.dev/guides/icons/) (Ionicons & MaterialCommunityIcons)
-- **Backgrounds**: [Expo Linear Gradient](https://docs.expo.dev/versions/latest/sdk/linear-gradient/)
+Ensure the backend is running and `CORS_ORIGIN=*` (or includes the Expo dev origin).
 
----
+## Run
 
-## Getting Started
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) (LTS)
-- [Expo Go](https://expo.dev/go) app on your physical device
-
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/BKerio/Malteser-NMS.git
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Running Locally
-Start the development server with a clean cache:
 ```bash
 npm start
-```
-*Note: The project is pre-configured to run in **offline mode** to bypass account requirements. Ensure your phone and computer are on the same network.*
-
----
-
-## Project Structure
-
-```text
-src/
-├── app/               # Expo Router file-based routes
-│   ├── (auth)/        # Authentication flow (Login, Signup, etc.)
-│   ├── (main)/        # Authenticated application screens
-│   └── _layout.tsx    # Root layout with ThemeProvider
-├── components/        # Reusable UI components
-├── context/           # Global State (ThemeContext, etc.)
-└── assets/            # Local images and icons
+# Then press a (Android) or i (iOS) in the Expo CLI
 ```
 
----
+## Test users
 
-## Configuration
+Create responder users via the admin portal or `backend/scripts/create-user.ts` with roles `DRIVER`, `EMT`, or `NURSE`. Dispatch must assign a task from the web dispatcher portal before the app shows an active assignment.
 
-- **Theme Settings**: Modify colors in `src/context/ThemeContext.tsx`.
-- **App Metadata**: Update name, slug, and versions in `app.json`.
-- **Environment**: Global flags like `EXPO_OFFLINE` are managed in the `.env` file.
+## Tech stack
+
+- Expo SDK 54 + React Native 0.81
+- Expo Router, Axios, Socket.io client, Expo Location
