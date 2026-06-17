@@ -1,13 +1,24 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
-import EmptyState from '@/components/shared/EmptyState';
+import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
+import StatusBadge from '@/components/StatusBadge';
 import TaskTimeline from '@/components/TaskTimeline';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useTheme } from '@/context/ThemeContext';
+import { getTaskHistory } from '@/api/responder';
+import { getErrorMessage } from '@/api/client';
 import { STATUS_LABELS } from '@/utils/taskStatus';
+import type { PaginatedMeta, TaskHistoryItem } from '@/types/api';
 
 function formatTime(iso?: string | null) {
   if (!iso) return null;
@@ -32,23 +43,92 @@ const MILESTONES = [
   { key: 'completedAt', label: STATUS_LABELS.COMPLETED },
 ] as const;
 
+function HistoryRow({ item, colors }: { item: TaskHistoryItem; colors: ReturnType<typeof useTheme>['colors'] }) {
+  const endedAt = item.completedAt ?? item.cancelledAt ?? item.receivedAt;
+  return (
+    <View style={[styles.historyRow, { borderBottomColor: colors.border }]}>
+      <View style={styles.historyMain}>
+        <AppText size={15} bold>
+          {item.incident.caseNumber}
+        </AppText>
+        <AppText size={13} secondary style={{ marginTop: 4 }} numberOfLines={2}>
+          {item.incident.chiefComplaint}
+        </AppText>
+        <AppText size={12} muted style={{ marginTop: 6 }}>
+          {item.vehicle.registrationNumber} · {item.incident.locationName}
+        </AppText>
+        <AppText size={12} muted style={{ marginTop: 2 }}>
+          {formatTime(endedAt)}
+        </AppText>
+        {item.status === 'CANCELLED' && item.cancelReason && (
+          <AppText size={12} color={colors.danger} style={{ marginTop: 4 }}>
+            {item.cancelReason}
+          </AppText>
+        )}
+      </View>
+      <StatusBadge status={item.status} />
+    </View>
+  );
+}
+
 export default function ActivityScreen() {
   const { task } = useActiveTaskContext();
   const { colors } = useTheme();
+  const [history, setHistory] = useState<TaskHistoryItem[]>([]);
+  const [meta, setMeta] = useState<PaginatedMeta | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [isHistoryRefreshing, setIsHistoryRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  const loadHistory = useCallback(async (page: number, append: boolean) => {
+    if (page === 1) setHistoryError(null);
+    try {
+      const result = await getTaskHistory(page, 15);
+      setMeta(result.meta);
+      setHistory((prev) => (append ? [...prev, ...result.data] : result.data));
+      setHistoryPage(page);
+    } catch (err) {
+      setHistoryError(getErrorMessage(err));
+      if (!append) setHistory([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory(1, false).finally(() => setIsHistoryLoading(false));
+  }, [loadHistory]);
+
+  const refreshHistory = async () => {
+    setIsHistoryRefreshing(true);
+    await loadHistory(1, false);
+    setIsHistoryRefreshing(false);
+  };
+
+  const loadMore = async () => {
+    if (!meta || historyPage >= meta.totalPages || isLoadingMore) return;
+    setIsLoadingMore(true);
+    await loadHistory(historyPage + 1, true);
+    setIsLoadingMore(false);
+  };
+
+  const hasMore = meta ? historyPage < meta.totalPages : false;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Activity" subtitle="Response timeline" />
+      <AppHeader title="Activity" subtitle="Timeline & history" />
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {!task ? (
-          <EmptyState
-            icon={<Ionicons name="pulse-outline" size={48} color={colors.textMuted} />}
-            title="No activity yet"
-            message="Timestamps and status updates for your current assignment will show here."
-          />
-        ) : (
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl refreshing={isHistoryRefreshing} onRefresh={refreshHistory} tintColor={colors.primary} />
+        }
+      >
+        {task ? (
           <>
+            <AppText size={12} bold muted style={styles.sectionLabel}>
+              CURRENT ASSIGNMENT
+            </AppText>
             <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
               <AppText size={16} bold>{task.incident.caseNumber}</AppText>
               <AppText size={14} secondary style={styles.complaint}>
@@ -100,7 +180,46 @@ export default function ActivityScreen() {
               </View>
             )}
           </>
+        ) : (
+          <EmptyState
+            icon={<Ionicons name="pulse-outline" size={40} color={colors.textMuted} />}
+            title="No active assignment"
+            message="Your current case timeline will appear here when dispatch assigns you."
+          />
         )}
+
+        <AppText size={12} bold muted style={[styles.sectionLabel, { marginTop: task ? 8 : 0 }]}>
+          TASK HISTORY
+        </AppText>
+
+        <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          {isHistoryLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ paddingVertical: 24 }} />
+          ) : historyError ? (
+            <ErrorState message={historyError} onRetry={refreshHistory} />
+          ) : history.length === 0 ? (
+            <AppText size={14} muted style={{ paddingVertical: 8 }}>
+              No completed or cancelled tasks yet.
+            </AppText>
+          ) : (
+            <>
+              {history.map((item) => (
+                <HistoryRow key={item.id} item={item} colors={colors} />
+              ))}
+              {hasMore && (
+                <TouchableOpacity style={styles.loadMore} onPress={loadMore} disabled={isLoadingMore}>
+                  {isLoadingMore ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <AppText size={14} bold color={colors.primary}>
+                      Load more
+                    </AppText>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -109,6 +228,7 @@ export default function ActivityScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 24 },
+  sectionLabel: { letterSpacing: 0.8, marginBottom: 10 },
   card: {
     borderRadius: 20,
     padding: 20,
@@ -118,9 +238,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
-  caseRef: { fontSize: 16, fontWeight: '800' },
-  complaint: { fontSize: 14, marginTop: 6, lineHeight: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 14 },
+  complaint: { marginTop: 6, lineHeight: 20 },
+  sectionTitle: { marginBottom: 14 },
   timestampRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
   timestampDot: {
     width: 10,
@@ -130,8 +249,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   timestampContent: { flex: 1 },
-  timestampLabel: { fontSize: 14, fontWeight: '600' },
-  timestampTime: { fontSize: 13, marginTop: 2 },
-  noTimestamps: { fontSize: 14 },
-  notes: { fontSize: 14, lineHeight: 22 },
+  notes: { lineHeight: 22 },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  historyMain: { flex: 1 },
+  loadMore: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
 });

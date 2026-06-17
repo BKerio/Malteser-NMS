@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
+import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
 import StatusBadge from '@/components/StatusBadge';
 import LogoutConfirmModal from '@/components/shared/LogoutConfirmModal';
@@ -25,6 +26,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { task } = useActiveTaskContext();
+  const { checkOut, myVehicle } = useCrewCheckIn();
   const { colors } = useTheme();
   const [showLogout, setShowLogout] = useState(false);
 
@@ -39,6 +41,13 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
   const handleLogoutConfirm = async () => {
     setShowLogout(false);
     props.navigation.closeDrawer();
+    if (myVehicle) {
+      try {
+        await checkOut();
+      } catch {
+        // Continue logout even if check-out fails
+      }
+    }
     await logout();
     router.replace('/(auth)/login');
   };
@@ -71,7 +80,7 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
             {user?.email}
           </AppText>
 
-          {task && (
+          {task ? (
             <View style={styles.activeCase}>
               <MaterialCommunityIcons name="ambulance" size={16} color="#5eead4" />
               <AppText size={13} bold color="#e2e8f0" style={{ flex: 1 }}>
@@ -79,7 +88,14 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
               </AppText>
               <StatusBadge status={task.status} />
             </View>
-          )}
+          ) : myVehicle ? (
+            <View style={styles.activeCase}>
+              <MaterialCommunityIcons name="clipboard-check-outline" size={16} color="#5eead4" />
+              <AppText size={13} bold color="#e2e8f0" style={{ flex: 1 }}>
+                On shift · {myVehicle.registrationNumber}
+              </AppText>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.nav}>

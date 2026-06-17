@@ -18,6 +18,7 @@ import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
 import { useAuth } from '@/context/AuthContext';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
+import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
 import { updateTaskStatus } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
@@ -27,6 +28,7 @@ import type { TaskStatus } from '@/types/api';
 export default function AssignmentScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { myVehicle } = useCrewCheckIn();
   const { task, isLoading, isRefreshing, error, refresh } = useActiveTaskContext();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -98,13 +100,27 @@ export default function AssignmentScreen() {
         ) : error ? (
           <ErrorState message={error} onRetry={refresh} />
         ) : !task ? (
-          <EmptyState
-            icon={<MaterialCommunityIcons name="ambulance" size={52} color={colors.textMuted} />}
-            title="No active assignment"
-            message="You will be notified when dispatch assigns a case to your crew. Pull down to refresh."
-            actionLabel="Refresh now"
-            onAction={refresh}
-          />
+          <>
+            {!myVehicle && (
+              <View style={[styles.banner, { backgroundColor: colors.noteBg, borderColor: colors.border }]}>
+                <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+                <AppText size={14} secondary style={styles.bannerText}>
+                  Check in to your vehicle on the Crew tab before dispatch can assign cases to you.
+                </AppText>
+              </View>
+            )}
+            <EmptyState
+              icon={<MaterialCommunityIcons name="ambulance" size={52} color={colors.textMuted} />}
+              title="No active assignment"
+              message={
+                myVehicle
+                  ? 'You are on shift. You will be notified when dispatch assigns a case to your crew. Pull down to refresh.'
+                  : 'You will be notified when dispatch assigns a case to your crew. Pull down to refresh.'
+              }
+              actionLabel="Refresh now"
+              onAction={refresh}
+            />
+          </>
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
@@ -216,6 +232,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   scroll: { paddingHorizontal: 20, paddingBottom: 24 },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+  },
+  bannerText: { flex: 1, lineHeight: 20 },
   card: {
     borderRadius: 20,
     padding: 20,

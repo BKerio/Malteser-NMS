@@ -7,6 +7,7 @@ import AppText from '@/components/shared/AppText';
 import LogoutConfirmModal from '@/components/shared/LogoutConfirmModal';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { getApiBaseUrl } from '@/config/env';
 
 const ROLE_LABELS = { DRIVER: 'Driver', EMT: 'EMT', NURSE: 'Nurse' } as const;
@@ -14,12 +15,20 @@ const ROLE_LABELS = { DRIVER: 'Driver', EMT: 'EMT', NURSE: 'Nurse' } as const;
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const { user, logout } = useAuth();
+  const { checkOut, myVehicle } = useCrewCheckIn();
   const [showLogout, setShowLogout] = useState(false);
 
   const roleLabel = user ? ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role : '';
 
   const handleLogout = async () => {
     setShowLogout(false);
+    if (myVehicle) {
+      try {
+        await checkOut();
+      } catch {
+        // Continue logout even if check-out fails
+      }
+    }
     await logout();
     router.replace('/(auth)/login');
   };

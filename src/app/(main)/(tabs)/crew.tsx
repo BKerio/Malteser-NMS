@@ -4,10 +4,13 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
 import EmptyState from '@/components/shared/EmptyState';
+import ShiftCheckInCard from '@/components/crew/ShiftCheckInCard';
 import StatusBadge from '@/components/StatusBadge';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
+import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
 import type { ThemeColors } from '@/context/ThemeContext';
+import type { VehicleWithCrew } from '@/types/api';
 
 function CrewMember({
   icon,
@@ -53,21 +56,87 @@ function CrewMember({
   );
 }
 
+function ShiftCrewCard({ vehicle, colors }: { vehicle: VehicleWithCrew; colors: ThemeColors }) {
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+      <View style={styles.vehicleRow}>
+        <View style={[styles.vehicleIcon, { backgroundColor: colors.accent }]}>
+          <MaterialCommunityIcons name="ambulance" size={28} color={colors.onPrimary} />
+        </View>
+        <View style={styles.vehicleInfo}>
+          <AppText size={12} bold muted style={{ textTransform: 'uppercase' }}>
+            Your shift vehicle
+          </AppText>
+          <AppText size={20} bold style={{ marginTop: 2 }}>
+            {vehicle.registrationNumber}
+          </AppText>
+        </View>
+      </View>
+
+      <AppText size={16} bold style={styles.sectionTitle}>
+        Crew on shift
+      </AppText>
+      {vehicle.currentDriver ? (
+        <CrewMember
+          icon="car-outline"
+          role="Driver"
+          name={vehicle.currentDriver.name}
+          phone={vehicle.currentDriver.phone}
+          colors={colors}
+        />
+      ) : (
+        <AppText size={14} muted style={{ marginBottom: 12 }}>
+          No driver checked in yet.
+        </AppText>
+      )}
+      {vehicle.currentEmt ? (
+        <CrewMember
+          icon="medkit-outline"
+          role="EMT"
+          name={vehicle.currentEmt.name}
+          phone={vehicle.currentEmt.phone}
+          colors={colors}
+        />
+      ) : (
+        <AppText size={14} muted style={{ marginBottom: 12 }}>
+          No EMT checked in yet.
+        </AppText>
+      )}
+      {vehicle.currentNurse && (
+        <CrewMember
+          icon="heart-outline"
+          role="Nurse"
+          name={vehicle.currentNurse.name}
+          phone={vehicle.currentNurse.phone}
+          colors={colors}
+        />
+      )}
+    </View>
+  );
+}
+
 export default function CrewScreen() {
   const { task } = useActiveTaskContext();
+  const { myVehicle } = useCrewCheckIn();
   const { colors } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Crew" subtitle="Your team & vehicle" />
+      <AppHeader title="Crew" subtitle="Shift check-in & team" />
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        <ShiftCheckInCard />
+
         {!task ? (
-          <EmptyState
-            icon={<Ionicons name="people-outline" size={48} color={colors.textMuted} />}
-            title="No crew assignment"
-            message="Crew and vehicle details appear here once dispatch assigns your team to a case."
-          />
+          myVehicle ? (
+            <ShiftCrewCard vehicle={myVehicle} colors={colors} />
+          ) : (
+            <EmptyState
+              icon={<Ionicons name="people-outline" size={48} color={colors.textMuted} />}
+              title="No crew assignment"
+              message="Check in to a vehicle above. Crew and vehicle details for active cases appear here once dispatch assigns your team."
+            />
+          )
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
@@ -151,8 +220,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontSize: 14, fontWeight: '700', textTransform: 'uppercase' },
-  caseRef: { fontSize: 22, fontWeight: '800', marginTop: 8 },
   vehicleRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   vehicleIcon: {
     width: 56,
@@ -162,10 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   vehicleInfo: { flex: 1 },
-  vehicleLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
-  vehicleReg: { fontSize: 20, fontWeight: '800', marginTop: 2 },
-  vehicleImei: { fontSize: 12, marginTop: 4 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: 16, marginTop: 16 },
   member: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -181,9 +245,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   memberInfo: { flex: 1 },
-  memberRole: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  memberName: { fontSize: 16, fontWeight: '600', marginTop: 2 },
-  memberPhone: { fontSize: 13, marginTop: 2 },
   callBtn: {
     width: 40,
     height: 40,
@@ -199,5 +260,4 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: 54,
   },
-  mapBtnText: { fontSize: 16, fontWeight: '700' },
 });

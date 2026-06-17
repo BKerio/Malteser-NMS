@@ -25,6 +25,43 @@ export interface Vehicle {
   imei: string;
 }
 
+export interface CrewMemberRef {
+  id: string;
+  name: string;
+  phone?: string | null;
+}
+
+export interface VehicleWithCrew extends Vehicle {
+  status?: string;
+  currentDriver?: CrewMemberRef | null;
+  currentEmt?: CrewMemberRef | null;
+  currentNurse?: CrewMemberRef | null;
+}
+
+export interface PaginatedMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface TaskHistoryItem {
+  id: string;
+  status: TaskStatus;
+  receivedAt: string;
+  acceptedAt?: string | null;
+  sceneArrivalAt?: string | null;
+  patientPickAt?: string | null;
+  facilityArrivalAt?: string | null;
+  completedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+  incidentId: string;
+  vehicleId: string;
+  incident: Pick<Incident, 'id' | 'caseNumber' | 'chiefComplaint' | 'locationName' | 'subCounty'>;
+  vehicle: Pick<Vehicle, 'id' | 'registrationNumber'>;
+}
+
 export interface Incident {
   id: string;
   caseNumber: string;
