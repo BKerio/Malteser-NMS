@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -10,6 +10,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import AppText from '@/components/shared/AppText';
+import ConfirmActionModal from '@/components/shared/ConfirmActionModal';
 import { useAuth } from '@/context/AuthContext';
 import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -93,13 +94,19 @@ function VehicleRow({
 export default function ShiftCheckInCard() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { myVehicle, vehicles, isLoading, isRefreshing, isMutating, error, refresh, checkIn, checkOut } =
-    useCrewCheckIn();
+  const { myVehicle, vehicles, isLoading, isRefreshing, error, refresh, checkIn, checkOut } = useCrewCheckIn();
   const [showPicker, setShowPicker] = useState(false);
+  const [confirmCheckInFor, setConfirmCheckInFor] = useState<VehicleWithCrew | null>(null);
+  const [confirmEndShift, setConfirmEndShift] = useState(false);
+  const [pendingVehicleId, setPendingVehicleId] = useState<string | null>(null);
+  const [isEndingShift, setIsEndingShift] = useState(false);
 
   if (!user) return null;
 
+  const roleLabel = useMemo(() => slotLabel(user.role), [user.role]);
+
   const handleCheckIn = async (vehicleId: string) => {
+    setPendingVehicleId(vehicleId);
     try {
       await checkIn(vehicleId);
       setShowPicker(false);
@@ -118,10 +125,13 @@ export default function ShiftCheckInCard() {
         position: 'bottom',
         bottomOffset: 90,
       });
+    } finally {
+      setPendingVehicleId(null);
     }
   };
 
   const handleCheckOut = async () => {
+    setIsEndingShift(true);
     try {
       await checkOut();
       Toast.show({
@@ -139,6 +149,8 @@ export default function ShiftCheckInCard() {
         position: 'bottom',
         bottomOffset: 90,
       });
+    } finally {
+      setIsEndingShift(false);
     }
   };
 
@@ -157,6 +169,40 @@ export default function ShiftCheckInCard() {
           </AppText>
         </View>
       </View>
+
+      <ConfirmActionModal
+        visible={!!confirmCheckInFor}
+        iconName="clipboard-check-outline"
+        title="Check in to vehicle?"
+        message={
+          confirmCheckInFor
+            ? `You will be checked in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}.`
+            : 'Continue?'
+        }
+        cancelLabel="Not yet"
+        confirmLabel="Check in"
+        onCancel={() => setConfirmCheckInFor(null)}
+        onConfirm={() => {
+          const v = confirmCheckInFor;
+          setConfirmCheckInFor(null);
+          if (v) handleCheckIn(v.id);
+        }}
+      />
+
+      <ConfirmActionModal
+        visible={confirmEndShift}
+        iconName="logout"
+        title="End shift?"
+        message="This will check you out of the vehicle so dispatch will stop assigning cases to this crew slot."
+        cancelLabel="Keep shift"
+        confirmLabel="End shift"
+        tone="danger"
+        onCancel={() => setConfirmEndShift(false)}
+        onConfirm={() => {
+          setConfirmEndShift(false);
+          handleCheckOut();
+        }}
+      />
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
@@ -181,15 +227,15 @@ export default function ShiftCheckInCard() {
               {myVehicle.registrationNumber}
             </AppText>
             <AppText size={13} secondary style={{ marginTop: 4 }}>
-              {slotLabel(user.role)} · IMEI {myVehicle.imei}
+              {roleLabel} · IMEI {myVehicle.imei}
             </AppText>
           </View>
           <TouchableOpacity
             style={[styles.checkOutBtn, { borderColor: colors.danger }]}
-            onPress={handleCheckOut}
-            disabled={isMutating}
+            onPress={() => setConfirmEndShift(true)}
+            disabled={isEndingShift}
           >
-            {isMutating ? (
+            {isEndingShift ? (
               <ActivityIndicator size="small" color={colors.danger} />
             ) : (
               <AppText size={14} bold color={colors.danger}>
@@ -230,8 +276,8 @@ export default function ShiftCheckInCard() {
                     userRole={user.role}
                     userId={user.id}
                     isCheckedIn={false}
-                    isMutating={isMutating}
-                    onCheckIn={() => handleCheckIn(vehicle.id)}
+                    isMutating={pendingVehicleId === vehicle.id}
+                    onCheckIn={() => setConfirmCheckInFor(vehicle)}
                   />
                 ))
               )}
