@@ -2,11 +2,14 @@ import client from './client';
 import type {
   ApiResponse,
   PaginatedMeta,
+  PatientCareReport,
   Task,
   TaskHistoryItem,
   User,
   VehicleWithCrew,
 } from '@/types/api';
+import { getApiBaseUrl } from '@/config/env';
+import { getStoredToken } from '@/stores/authStorage';
 
 export async function login(email: string, passwordRaw: string) {
   const res = await client.post<ApiResponse<{ token: string; user: User }>>('/auth/login', {
@@ -40,6 +43,40 @@ export async function submitPatientData(
 ) {
   const res = await client.post<ApiResponse<unknown>>(`/tasks/${taskId}/patient-data`, data);
   return res.data.data;
+}
+
+export async function uploadPatientCareReport(
+  taskId: string,
+  input: {
+    note?: string;
+    image: { uri: string; name?: string; mimeType?: string };
+  }
+): Promise<PatientCareReport> {
+  const form = new FormData();
+  if (input.note) form.append('note', input.note);
+
+  const uri = input.image.uri;
+  const name = input.image.name ?? `pcr-${taskId}.jpg`;
+  const type = input.image.mimeType ?? 'image/jpeg';
+
+  form.append('file', { uri, name, type } as any);
+
+  const res = await client.post<ApiResponse<PatientCareReport>>(`/tasks/${taskId}/patient-care-report`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.data;
+}
+
+export async function getPatientCareReports(taskId: string): Promise<PatientCareReport[]> {
+  const res = await client.get<ApiResponse<PatientCareReport[]>>(`/tasks/${taskId}/patient-care-reports`);
+  return res.data.data;
+}
+
+export async function getPatientCareReportViewUrl(taskId: string, reportId: string): Promise<string> {
+  const token = await getStoredToken();
+  const base = getApiBaseUrl();
+  const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${base}/tasks/${taskId}/patient-care-reports/${reportId}/file${qs}`;
 }
 
 export async function postVehicleLocation(imei: string, lat: number, lng: number) {

@@ -8,17 +8,20 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router, type Href } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
 import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
 import TaskTimeline from '@/components/TaskTimeline';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { getTaskHistory } from '@/api/responder';
+import { getPatientCareReportViewUrl, getPatientCareReports, getTaskHistory } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
 import { STATUS_LABELS } from '@/utils/taskStatus';
-import type { PaginatedMeta, TaskHistoryItem } from '@/types/api';
+import type { PaginatedMeta, PatientCareReport, TaskHistoryItem } from '@/types/api';
 
 function formatTime(iso?: string | null) {
   if (!iso) return null;
@@ -43,8 +46,21 @@ const MILESTONES = [
   { key: 'completedAt', label: STATUS_LABELS.COMPLETED },
 ] as const;
 
-function HistoryRow({ item, colors }: { item: TaskHistoryItem; colors: ReturnType<typeof useTheme>['colors'] }) {
+function HistoryRow({
+  item,
+  colors,
+  canUploadPcr,
+  onUploadPcr,
+  onViewPcr,
+}: {
+  item: TaskHistoryItem;
+  colors: ReturnType<typeof useTheme>['colors'];
+  canUploadPcr: boolean;
+  onUploadPcr: () => void;
+  onViewPcr: () => void;
+}) {
   const endedAt = item.completedAt ?? item.cancelledAt ?? item.receivedAt;
+  const pcrCount = item.pcrCount ?? 0;
   return (
     <View style={[styles.historyRow, { borderBottomColor: colors.border }]}>
       <View style={styles.historyMain}>
@@ -65,6 +81,28 @@ function HistoryRow({ item, colors }: { item: TaskHistoryItem; colors: ReturnTyp
             {item.cancelReason}
           </AppText>
         )}
+
+        {item.status === 'COMPLETED' && pcrCount > 0 ? (
+          <TouchableOpacity
+            style={[styles.pcrBtn, { backgroundColor: colors.iconButton, borderColor: colors.border }]}
+            onPress={onViewPcr}
+          >
+            <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+            <AppText size={13} bold color={colors.primary}>
+              PCR history ({pcrCount})
+            </AppText>
+          </TouchableOpacity>
+        ) : canUploadPcr ? (
+          <TouchableOpacity
+            style={[styles.pcrBtn, { backgroundColor: colors.iconButton, borderColor: colors.border }]}
+            onPress={onUploadPcr}
+          >
+            <Ionicons name="cloud-upload-outline" size={16} color={colors.primary} />
+            <AppText size={13} bold color={colors.primary}>
+              Upload PCR
+            </AppText>
+          </TouchableOpacity>
+        ) : null}
       </View>
       <StatusBadge status={item.status} />
     </View>
@@ -73,6 +111,7 @@ function HistoryRow({ item, colors }: { item: TaskHistoryItem; colors: ReturnTyp
 
 export default function ActivityScreen() {
   const { task } = useActiveTaskContext();
+  const { user } = useAuth();
   const { colors } = useTheme();
   const [history, setHistory] = useState<TaskHistoryItem[]>([]);
   const [meta, setMeta] = useState<PaginatedMeta | null>(null);
@@ -81,6 +120,10 @@ export default function ActivityScreen() {
   const [isHistoryRefreshing, setIsHistoryRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [pcrTask, setPcrTask] = useState<{ taskId: string; caseNumber: string } | null>(null);
+  const [pcrItems, setPcrItems] = useState<PatientCareReport[]>([]);
+  const [isPcrLoading, setIsPcrLoading] = useState(false);
+  const [pcrError, setPcrError] = useState<string | null>(null);
 
   const loadHistory = useCallback(async (page: number, append: boolean) => {
     if (page === 1) setHistoryError(null);
@@ -114,6 +157,21 @@ export default function ActivityScreen() {
 
   const hasMore = meta ? historyPage < meta.totalPages : false;
 
+  const openPcrHistory = async (item: TaskHistoryItem) => {
+    setPcrTask({ taskId: item.id, caseNumber: item.incident.caseNumber });
+    setIsPcrLoading(true);
+    setPcrError(null);
+    try {
+      const data = await getPatientCareReports(item.id);
+      setPcrItems(data);
+    } catch (err) {
+      setPcrError(getErrorMessage(err));
+      setPcrItems([]);
+    } finally {
+      setIsPcrLoading(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title="Activity" subtitle="Timeline & history" />
@@ -124,6 +182,74 @@ export default function ActivityScreen() {
           <RefreshControl refreshing={isHistoryRefreshing} onRefresh={refreshHistory} tintColor={colors.primary} />
         }
       >
+        {pcrTask && (
+          <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <AppText size={12} bold muted style={{ letterSpacing: 0.8 }}>
+                  PCR HISTORY
+                </AppText>
+                <AppText size={16} bold style={{ marginTop: 6 }}>
+                  {pcrTask.caseNumber}
+                </AppText>
+              </View>
+              <TouchableOpacity
+                style={[styles.closePcrBtn, { backgroundColor: colors.iconButton }]}
+                onPress={() => setPcrTask(null)}
+              >
+                <Ionicons name="close" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {isPcrLoading ? (
+              <ActivityIndicator color={colors.primary} style={{ paddingVertical: 18 }} />
+            ) : pcrError ? (
+              <AppText size={13} color={colors.danger} style={{ marginTop: 12 }}>
+                {pcrError}
+              </AppText>
+            ) : pcrItems.length === 0 ? (
+              <AppText size={13} muted style={{ marginTop: 12 }}>
+                No reports uploaded yet.
+              </AppText>
+            ) : (
+              <View style={{ marginTop: 12, gap: 10 }}>
+                {pcrItems.map((r) => (
+                  <View key={r.id} style={[styles.pcrRow, { borderColor: colors.border, backgroundColor: colors.noteBg }]}>
+                    <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <AppText size={13} bold>
+                        {new Date(r.createdAt).toLocaleString()}
+                      </AppText>
+                      {!!r.note && (
+                        <AppText size={12} secondary style={{ marginTop: 2 }} numberOfLines={2}>
+                          {r.note}
+                        </AppText>
+                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 6 }}>
+                        <AppText size={11} muted>
+                          {Math.round((r.fileSize / 1024) * 10) / 10} KB
+                        </AppText>
+                        <TouchableOpacity
+                          style={[styles.viewBtn, { backgroundColor: colors.iconButton, borderColor: colors.border }]}
+                          onPress={async () => {
+                            if (!pcrTask) return;
+                            const url = await getPatientCareReportViewUrl(pcrTask.taskId, r.id);
+                            await WebBrowser.openBrowserAsync(url);
+                          }}
+                        >
+                          <Ionicons name="open-outline" size={16} color={colors.primary} />
+                          <AppText size={12} bold color={colors.primary}>
+                            View
+                          </AppText>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
         {task ? (
           <>
             <AppText size={12} bold muted style={styles.sectionLabel}>
@@ -204,7 +330,20 @@ export default function ActivityScreen() {
           ) : (
             <>
               {history.map((item) => (
-                <HistoryRow key={item.id} item={item} colors={colors} />
+                <HistoryRow
+                  key={item.id}
+                  item={item}
+                  colors={colors}
+                  canUploadPcr={!!user && user.role === 'DRIVER' && item.status === 'COMPLETED'}
+                  onUploadPcr={() => {
+                    const qs = new URLSearchParams({
+                      taskId: item.id,
+                      caseNumber: item.incident.caseNumber,
+                    }).toString();
+                    router.push((`/(main)/patient-care-report?${qs}` as unknown) as Href);
+                  }}
+                  onViewPcr={() => openPcrHistory(item)}
+                />
               ))}
               {hasMore && (
                 <TouchableOpacity style={styles.loadMore} onPress={loadMore} disabled={isLoadingMore}>
@@ -258,6 +397,41 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   historyMain: { flex: 1 },
+  pcrBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  closePcrBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pcrRow: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  viewBtn: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   loadMore: {
     alignItems: 'center',
     paddingTop: 16,

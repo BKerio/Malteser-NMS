@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import AppHeader from '@/components/navigation/AppHeader';
@@ -47,6 +47,13 @@ export default function AssignmentScreen() {
         position: 'bottom',
         bottomOffset: 90,
       });
+      if (next === 'COMPLETED') {
+        const qs = new URLSearchParams({
+          taskId: task.id,
+          caseNumber: task.incident.caseNumber,
+        }).toString();
+        router.push((`/(main)/patient-care-report?${qs}` as unknown) as Href);
+      }
       refresh();
     } catch (err) {
       Toast.show({

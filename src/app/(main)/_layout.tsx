@@ -28,6 +28,13 @@ export default function MainLayout() {
               swipeEnabled: false,
             }}
           />
+          <Drawer.Screen
+            name="patient-care-report"
+            options={{
+              drawerItemStyle: { display: 'none' },
+              swipeEnabled: false,
+            }}
+          />
         </Drawer>
       </CrewCheckInProvider>
     </ActiveTaskProvider>

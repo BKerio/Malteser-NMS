@@ -56,6 +56,8 @@ export interface TaskHistoryItem {
   completedAt?: string | null;
   cancelledAt?: string | null;
   cancelReason?: string | null;
+  pcrCount?: number;
+  lastPcrAt?: string | null;
   incidentId: string;
   vehicleId: string;
   incident: Pick<Incident, 'id' | 'caseNumber' | 'chiefComplaint' | 'locationName' | 'subCounty'>;
@@ -99,6 +101,17 @@ export interface Task {
   driver: { id: string; name: string; phone?: string | null };
   emt: { id: string; name: string; phone?: string | null };
   nurse?: { id: string; name: string; phone?: string | null } | null;
+}
+
+export interface PatientCareReport {
+  id: string;
+  taskId: string;
+  uploaderId: string;
+  note: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
 }
 
 export interface ApiResponse<T> {
