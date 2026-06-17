@@ -246,6 +246,7 @@ export default function ActivityScreen() {
                               reportId: r.id,
                               mimeType: r.mimeType,
                               caseNumber: pcrTask.caseNumber,
+                              fileSize: String(r.fileSize),
                               ...(r.note ? { note: r.note } : {}),
                             }).toString();
                             router.push((`/(main)/pcr-viewer?${qs}` as unknown) as Href);

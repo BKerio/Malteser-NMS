@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AppText from '@/components/shared/AppText';
 import { useAuth } from '@/context/AuthContext';
@@ -13,15 +14,23 @@ interface AppHeaderProps {
   title: string;
   subtitle?: string;
   rightAction?: React.ReactNode;
+  /** Use back chevron instead of drawer menu (detail screens). */
+  showBack?: boolean;
+  onBack?: () => void;
 }
 
-export default function AppHeader({ title, subtitle, rightAction }: AppHeaderProps) {
+export default function AppHeader({ title, subtitle, rightAction, showBack, onBack }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user } = useAuth();
   const { colors } = useTheme();
 
   const roleLabel = user ? ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role : '';
+
+  const handleBack = () => {
+    if (onBack) onBack();
+    else router.back();
+  };
 
   return (
     <View
@@ -33,10 +42,14 @@ export default function AppHeader({ title, subtitle, rightAction }: AppHeaderPro
       <View style={styles.row}>
         <TouchableOpacity
           style={[styles.menuBtn, { backgroundColor: colors.iconButton, shadowColor: colors.shadow }]}
-          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-          accessibilityLabel="Open menu"
+          onPress={showBack ? handleBack : () => navigation.dispatch(DrawerActions.openDrawer())}
+          accessibilityLabel={showBack ? 'Go back' : 'Open menu'}
         >
-          <Ionicons name="menu" size={24} color={colors.primary} />
+          <Ionicons
+            name={showBack ? 'chevron-back' : 'menu'}
+            size={showBack ? 26 : 24}
+            color={colors.primary}
+          />
         </TouchableOpacity>
 
         <View style={styles.titles}>

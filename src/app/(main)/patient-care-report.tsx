@@ -135,7 +135,7 @@ export default function PatientCareReportScreen() {
         }}
       />
 
-      <AppHeader title={title} subtitle="Upload image or document + note" />
+      <AppHeader title={title} subtitle="Upload image or document + note" showBack />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
