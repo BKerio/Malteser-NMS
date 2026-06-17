@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { getApiBaseUrl } from '@/config/env';
+import client from '@/api/client';
 import { getStoredToken } from '@/stores/authStorage';
 
 export type PcrFileKind = 'image' | 'pdf' | 'docx' | 'unknown';
@@ -20,25 +20,34 @@ function extensionForMime(mimeType: string): string {
   return '.jpg';
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 export async function downloadPcrFile(taskId: string, reportId: string, mimeType: string): Promise<string> {
   const token = await getStoredToken();
   if (!token) throw new Error('Not signed in');
 
-  const url = `${getApiBaseUrl()}/tasks/${taskId}/patient-care-reports/${reportId}/file`;
   const dest = `${FileSystem.cacheDirectory}pcr-${reportId}${extensionForMime(mimeType)}`;
 
   const existing = await FileSystem.getInfoAsync(dest);
   if (existing.exists) await FileSystem.deleteAsync(dest, { idempotent: true });
 
-  const result = await FileSystem.downloadAsync(url, dest, {
-    headers: { Authorization: `Bearer ${token}` },
+  // Axios client attaches JWT via interceptor (more reliable than downloadAsync headers).
+  const response = await client.get(`/tasks/${taskId}/patient-care-reports/${reportId}/file`, {
+    responseType: 'arraybuffer',
   });
 
-  if (result.status !== 200) {
-    throw new Error(`Failed to download report (${result.status})`);
-  }
+  const base64 = arrayBufferToBase64(response.data as ArrayBuffer);
+  await FileSystem.writeAsStringAsync(dest, base64, { encoding: FileSystem.EncodingType.Base64 });
 
-  return result.uri;
+  return dest;
 }
 
 export async function readPcrFileBase64(localUri: string): Promise<string> {
