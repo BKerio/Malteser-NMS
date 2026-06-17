@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
 import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
@@ -18,10 +17,19 @@ import TaskTimeline from '@/components/TaskTimeline';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { getPatientCareReportViewUrl, getPatientCareReports, getTaskHistory } from '@/api/responder';
+import { getPatientCareReports, getTaskHistory } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
 import { STATUS_LABELS } from '@/utils/taskStatus';
 import type { PaginatedMeta, PatientCareReport, TaskHistoryItem } from '@/types/api';
+import { getPcrFileKind } from '@/utils/pcrFiles';
+
+function fileTypeLabel(mimeType: string) {
+  const kind = getPcrFileKind(mimeType);
+  if (kind === 'image') return 'Image';
+  if (kind === 'pdf') return 'PDF';
+  if (kind === 'docx') return 'DOCX';
+  return 'File';
+}
 
 function formatTime(iso?: string | null) {
   if (!iso) return null;
@@ -227,17 +235,23 @@ export default function ActivityScreen() {
                       )}
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 6 }}>
                         <AppText size={11} muted>
-                          {Math.round((r.fileSize / 1024) * 10) / 10} KB
+                          {fileTypeLabel(r.mimeType)} · {Math.round((r.fileSize / 1024) * 10) / 10} KB
                         </AppText>
                         <TouchableOpacity
                           style={[styles.viewBtn, { backgroundColor: colors.iconButton, borderColor: colors.border }]}
-                          onPress={async () => {
+                          onPress={() => {
                             if (!pcrTask) return;
-                            const url = await getPatientCareReportViewUrl(pcrTask.taskId, r.id);
-                            await WebBrowser.openBrowserAsync(url);
+                            const qs = new URLSearchParams({
+                              taskId: pcrTask.taskId,
+                              reportId: r.id,
+                              mimeType: r.mimeType,
+                              caseNumber: pcrTask.caseNumber,
+                              ...(r.note ? { note: r.note } : {}),
+                            }).toString();
+                            router.push((`/(main)/pcr-viewer?${qs}` as unknown) as Href);
                           }}
                         >
-                          <Ionicons name="open-outline" size={16} color={colors.primary} />
+                          <Ionicons name="eye-outline" size={16} color={colors.primary} />
                           <AppText size={12} bold color={colors.primary}>
                             View
                           </AppText>

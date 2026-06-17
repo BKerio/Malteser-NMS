@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import Toast from 'react-native-toast-message';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AppHeader from '@/components/navigation/AppHeader';
@@ -10,6 +11,13 @@ import ConfirmActionModal from '@/components/shared/ConfirmActionModal';
 import { uploadPatientCareReport } from '@/api/responder';
 import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage } from '@/api/client';
+import { getPcrFileKind } from '@/utils/pcrFiles';
+
+type SelectedFile = {
+  uri: string;
+  name: string;
+  mimeType: string;
+};
 
 export default function PatientCareReportScreen() {
   const { colors } = useTheme();
@@ -18,25 +26,56 @@ export default function PatientCareReportScreen() {
   const caseNumber = params.caseNumber ?? '';
 
   const [note, setNote] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
 
   const title = useMemo(() => (caseNumber ? `PCR · ${caseNumber}` : 'Patient Care Report'), [caseNumber]);
+  const fileKind = selectedFile ? getPcrFileKind(selectedFile.mimeType) : null;
 
   const pickFromLibrary = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.9,
     });
-    if (!res.canceled) setImageUri(res.assets[0]?.uri ?? null);
+    if (!res.canceled && res.assets[0]) {
+      const asset = res.assets[0];
+      setSelectedFile({
+        uri: asset.uri,
+        name: asset.fileName ?? `pcr-${taskId}.jpg`,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+      });
+    }
   };
 
   const takePhoto = async () => {
-    const res = await ImagePicker.launchCameraAsync({
-      quality: 0.9,
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.9 });
+    if (!res.canceled && res.assets[0]) {
+      const asset = res.assets[0];
+      setSelectedFile({
+        uri: asset.uri,
+        name: asset.fileName ?? `pcr-${taskId}.jpg`,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+      });
+    }
+  };
+
+  const pickDocument = async () => {
+    const res = await DocumentPicker.getDocumentAsync({
+      type: [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ],
+      copyToCacheDirectory: true,
     });
-    if (!res.canceled) setImageUri(res.assets[0]?.uri ?? null);
+    if (!res.canceled && res.assets?.[0]) {
+      const asset = res.assets[0];
+      setSelectedFile({
+        uri: asset.uri,
+        name: asset.name,
+        mimeType: asset.mimeType ?? 'application/octet-stream',
+      });
+    }
   };
 
   const submit = async () => {
@@ -44,13 +83,20 @@ export default function PatientCareReportScreen() {
       Toast.show({ type: 'error', text1: 'Missing task', text2: 'Please return to Assignment and try again.' });
       return;
     }
-    if (!imageUri) {
-      Toast.show({ type: 'error', text1: 'Add a photo', text2: 'Take a photo or pick an image to upload.' });
+    if (!selectedFile) {
+      Toast.show({
+        type: 'error',
+        text1: 'Add a report',
+        text2: 'Take a photo, choose an image, or pick a PDF/DOCX file.',
+      });
       return;
     }
     setIsUploading(true);
     try {
-      await uploadPatientCareReport(taskId, { note: note.trim() || undefined, image: { uri: imageUri } });
+      await uploadPatientCareReport(taskId, {
+        note: note.trim() || undefined,
+        file: selectedFile,
+      });
       Toast.show({
         type: 'success',
         text1: 'PCR uploaded',
@@ -78,7 +124,7 @@ export default function PatientCareReportScreen() {
         visible={confirmSkip}
         iconName="file-cancel-outline"
         title="Skip PCR upload?"
-        message="You can upload later from Activity history (coming soon), but dispatch may require a report to close the case."
+        message="You can upload later from Activity history, but dispatch may require a report to close the case."
         cancelLabel="Continue"
         confirmLabel="Skip"
         tone="danger"
@@ -89,15 +135,15 @@ export default function PatientCareReportScreen() {
         }}
       />
 
-      <AppHeader title={title} subtitle="Upload photo + add a short note" />
+      <AppHeader title={title} subtitle="Upload image or document + note" />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
           <AppText size={16} bold>
-            Report image
+            Report file
           </AppText>
           <AppText size={13} secondary style={{ marginTop: 6, lineHeight: 19 }}>
-            Take a clear photo of the patient care report (PCR), or upload a saved image.
+            Upload a photo of the PCR, or attach a PDF or DOCX document.
           </AppText>
 
           <View style={styles.actions}>
@@ -118,17 +164,44 @@ export default function PatientCareReportScreen() {
             >
               <Ionicons name="image" size={18} color={colors.text} />
               <AppText size={14} bold>
-                Choose image
+                Image
               </AppText>
             </TouchableOpacity>
           </View>
 
-          {imageUri ? (
+          <TouchableOpacity
+            style={[styles.docBtn, { backgroundColor: colors.noteBg, borderColor: colors.border }]}
+            onPress={pickDocument}
+            disabled={isUploading}
+          >
+            <MaterialCommunityIcons name="file-document-outline" size={20} color={colors.primary} />
+            <AppText size={14} bold color={colors.primary}>
+              Choose PDF or DOCX
+            </AppText>
+          </TouchableOpacity>
+
+          {selectedFile ? (
             <View style={[styles.previewWrap, { borderColor: colors.border }]}>
-              <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="cover" />
+              {fileKind === 'image' ? (
+                <Image source={{ uri: selectedFile.uri }} style={styles.preview} resizeMode="cover" />
+              ) : (
+                <View style={[styles.docPreview, { backgroundColor: colors.noteBg }]}>
+                  <MaterialCommunityIcons
+                    name={fileKind === 'pdf' ? 'file-pdf-box' : 'file-word-box'}
+                    size={42}
+                    color={colors.primary}
+                  />
+                  <AppText size={14} bold style={{ marginTop: 10, textAlign: 'center' }}>
+                    {selectedFile.name}
+                  </AppText>
+                  <AppText size={12} muted style={{ marginTop: 4 }}>
+                    {fileKind === 'pdf' ? 'PDF document' : 'Word document'}
+                  </AppText>
+                </View>
+              )}
               <TouchableOpacity
                 style={[styles.removeBtn, { backgroundColor: colors.overlay }]}
-                onPress={() => setImageUri(null)}
+                onPress={() => setSelectedFile(null)}
                 disabled={isUploading}
               >
                 <Ionicons name="close" size={18} color="#fff" />
@@ -136,9 +209,9 @@ export default function PatientCareReportScreen() {
             </View>
           ) : (
             <View style={[styles.placeholder, { borderColor: colors.border, backgroundColor: colors.noteBg }]}>
-              <MaterialCommunityIcons name="file-image-outline" size={34} color={colors.textMuted} />
+              <MaterialCommunityIcons name="file-upload-outline" size={34} color={colors.textMuted} />
               <AppText size={13} muted style={{ marginTop: 8 }}>
-                No image selected yet
+                No file selected yet
               </AppText>
             </View>
           )}
@@ -220,6 +293,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
+  docBtn: {
+    marginTop: 10,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   placeholder: {
     marginTop: 14,
     borderWidth: 1,
@@ -237,6 +320,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   preview: { width: '100%', height: 220 },
+  docPreview: {
+    minHeight: 170,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
   removeBtn: {
     position: 'absolute',
     top: 10,
@@ -276,4 +365,3 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 });
-
