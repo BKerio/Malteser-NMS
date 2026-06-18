@@ -127,6 +127,6 @@ export function AccessibilityProvider({
 
 export function useAccessibility() {
   const ctx = useContext(AccessibilityContext);
-  if (!ctx) throw new Error('useAccessibisty must be used within AccessibilityProvider');
+  if (!ctx) throw new Error('useAccessibility must be used within AccessibilityProvider');
   return ctx;
 }
