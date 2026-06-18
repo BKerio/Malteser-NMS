@@ -113,7 +113,7 @@ export function AccessibilityProvider({
     () => ({
       ...settings,
       setFontScale,
-      setFontWeight,
+      setFontWeighte,
       setDyslexiaFont,
       resetAccessibility,
       getTextStyle,
