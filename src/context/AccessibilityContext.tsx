@@ -115,7 +115,7 @@ export function AccessibilityProvider({
       setFontScale,
       setFontWeight,
       setDyslexiaFont,
-      resetAcceessibility,
+      resetAccessibility,
       getTextStyle,
       fontsLoaded,
     }),
