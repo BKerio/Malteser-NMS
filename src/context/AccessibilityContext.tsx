@@ -103,7 +103,7 @@ export function AccessibilityProvider({
       return {
         fontSize: scaledSize,
         fontWeight: isBold ? '700' : '400',
-        fontStyle: isItalic ? 'itawlic' : 'normal',
+        fontStyle: isItalic ? 'italic' : 'normal',
       };
     },
     [settings, fontsLoaded]
