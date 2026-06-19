@@ -147,7 +147,7 @@ export default function SettingsScreen() {
             NMS Responder
           </AppText>
           <AppText size={15} secondary style={{ marginTop: 8, lineHeight: 22 }}>
-            The quick brown fox jumps over the lazy dog. Case #NMS-001 — patient stable, en route to facility.
+            NMS-001 - patient stable, en route to facility.
           </AppText>
         </View>
 
