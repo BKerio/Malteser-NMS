@@ -94,12 +94,12 @@ export interface Task {
   incidentId: string;
   vehicleId: string;
   driverId: string;
-  emtId: string;
+  emtId?: string | null;
   nurseId?: string | null;
   incident: Incident;
   vehicle: Vehicle;
   driver: { id: string; name: string; phone?: string | null };
-  emt: { id: string; name: string; phone?: string | null };
+  emt?: { id: string; name: string; phone?: string | null } | null;
   nurse?: { id: string; name: string; phone?: string | null } | null;
 }
 

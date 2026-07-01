@@ -175,7 +175,13 @@ export default function CrewScreen() {
                 Crew members
               </AppText>
               <CrewMember icon="car-outline" role="Driver" name={task.driver.name} phone={task.driver.phone} colors={colors} />
-              <CrewMember icon="medkit-outline" role="EMT" name={task.emt.name} phone={task.emt.phone} colors={colors} />
+              {task.emt ? (
+                <CrewMember icon="medkit-outline" role="EMT" name={task.emt.name} phone={task.emt.phone} colors={colors} />
+              ) : (
+                <AppText size={14} muted style={{ marginBottom: 12 }}>
+                  No EMT assigned to this case.
+                </AppText>
+              )}
               {task.nurse && (
                 <CrewMember icon="heart-outline" role="Nurse" name={task.nurse.name} phone={task.nurse.phone} colors={colors} />
               )}
