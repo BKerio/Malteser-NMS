@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -23,7 +22,31 @@ import { useTheme } from '@/context/ThemeContext';
 import { updateTaskStatus } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
 import { ACTION_LABELS, getNextStatus } from '@/utils/taskStatus';
-import type { TaskStatus } from '@/types/api';
+import type { MaternityVitals, PatientVitals, TaskStatus } from '@/types/api';
+
+function hasAnyVitals(v?: PatientVitals | null): boolean {
+  if (!v) return false;
+  return Boolean(v.temperature || v.pulseRate || v.respirationRate || v.bp || v.spo2 || v.fh);
+}
+
+function hasMaternityVitals(v?: MaternityVitals | null): boolean {
+  if (!v) return false;
+  return Object.values(v).some((val) => Boolean(val && String(val).trim()));
+}
+
+function VitalChip({ label, value, colors }: { label: string; value?: string; colors: { border: string; textSecondary: string; text: string } }) {
+  if (!value) return null;
+  return (
+    <View style={[styles.vitalChip, { borderColor: colors.border }]}>
+      <AppText size={11} muted>
+        {label}
+      </AppText>
+      <AppText size={14} bold style={{ marginTop: 2 }}>
+        {value}
+      </AppText>
+    </View>
+  );
+}
 
 export default function AssignmentScreen() {
   const { user } = useAuth();
@@ -70,13 +93,13 @@ export default function AssignmentScreen() {
 
   const openMaps = () => {
     if (!task?.incident?.lat || !task?.incident?.lng) return;
-    const { lat, lng } = task.incident;
-    const url = Platform.select({
-      ios: `maps:0,0?q=${lat},${lng}`,
-      android: `geo:${lat},${lng}?q=${lat},${lng}`,
-      default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-    });
-    if (url) Linking.openURL(url);
+    const { lat, lng, locationName } = task.incident;
+    const qs = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+      label: locationName || 'Incident scene',
+    }).toString();
+    router.push((`/(main)/navigate?${qs}` as unknown) as Href);
   };
 
   const nextStatus = task ? getNextStatus(task.status as TaskStatus) : null;
@@ -135,6 +158,34 @@ export default function AssignmentScreen() {
                 <AppText size={18} bold>{task.incident.caseNumber}</AppText>
                 <StatusBadge status={task.status} />
               </View>
+
+              {(task.incident.alertNature || task.incident.isGbvCase || task.incident.massCasualty) && (
+                <View style={styles.tagRow}>
+                  {task.incident.isGbvCase && (
+                    <View style={[styles.tag, { backgroundColor: colors.dangerBg }]}>
+                      <AppText size={12} bold color={colors.danger}>
+                        GBV case
+                      </AppText>
+                    </View>
+                  )}
+                  {task.incident.massCasualty && (
+                    <View style={[styles.tag, { backgroundColor: colors.noteBg }]}>
+                      <AppText size={12} bold muted>
+                        Mass casualty{task.incident.massCasualtyCount ? ` · ${task.incident.massCasualtyCount}` : ''}
+                      </AppText>
+                    </View>
+                  )}
+                  {task.incident.alertNature && (
+                    <View style={[styles.tag, { backgroundColor: colors.noteBg }]}>
+                      <AppText size={12} bold muted>
+                        {task.incident.alertNature}
+                        {task.incident.alertNatureDetail ? ` · ${task.incident.alertNatureDetail}` : ''}
+                      </AppText>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <AppText size={16} secondary style={styles.complaint}>
                 {task.incident.chiefComplaint}
               </AppText>
@@ -148,6 +199,7 @@ export default function AssignmentScreen() {
                   <AppText size={15} bold>{task.incident.locationName}</AppText>
                   <AppText size={13} secondary style={{ marginTop: 2 }}>
                     {task.incident.subCounty}
+                    {task.incident.placeOfReferral ? ` · Referral: ${task.incident.placeOfReferral}` : ''}
                   </AppText>
                 </View>
                 {task.incident.lat && task.incident.lng && (
@@ -163,6 +215,71 @@ export default function AssignmentScreen() {
                     {task.incident.patientAge ? `, ${task.incident.patientAge}` : ''}
                     {task.incident.patientGender ? ` · ${task.incident.patientGender}` : ''}
                   </AppText>
+                </View>
+              )}
+
+              {task.incident.patientContact ? (
+                <TouchableOpacity
+                  style={styles.patientRow}
+                  onPress={() => Linking.openURL(`tel:${task.incident.patientContact}`)}
+                >
+                  <Ionicons name="call-outline" size={16} color={colors.textSecondary} />
+                  <AppText size={14} secondary style={styles.patientText}>
+                    Patient · {task.incident.patientContact}
+                  </AppText>
+                </TouchableOpacity>
+              ) : null}
+
+              {(task.incident.nextOfKin || task.incident.nextOfKinPhone) && (
+                <TouchableOpacity
+                  style={styles.patientRow}
+                  onPress={() =>
+                    task.incident.nextOfKinPhone
+                      ? Linking.openURL(`tel:${task.incident.nextOfKinPhone}`)
+                      : undefined
+                  }
+                  disabled={!task.incident.nextOfKinPhone}
+                >
+                  <Ionicons name="people-outline" size={16} color={colors.textSecondary} />
+                  <AppText size={14} secondary style={styles.patientText}>
+                    Next of kin
+                    {task.incident.nextOfKin ? ` · ${task.incident.nextOfKin}` : ''}
+                    {task.incident.nextOfKinPhone ? ` · ${task.incident.nextOfKinPhone}` : ''}
+                  </AppText>
+                </TouchableOpacity>
+              )}
+
+              {hasAnyVitals(task.incident.vitals) && (
+                <View style={[styles.noteBox, { backgroundColor: colors.noteBg, marginTop: 8 }]}>
+                  <AppText size={12} bold muted style={{ marginBottom: 8 }}>
+                    Patient vitals
+                  </AppText>
+                  <View style={styles.vitalRow}>
+                    <VitalChip label="Temp" value={task.incident.vitals?.temperature} colors={colors} />
+                    <VitalChip label="Pulse" value={task.incident.vitals?.pulseRate} colors={colors} />
+                    <VitalChip label="RR" value={task.incident.vitals?.respirationRate} colors={colors} />
+                    <VitalChip label="BP" value={task.incident.vitals?.bp} colors={colors} />
+                    <VitalChip label="SPO₂" value={task.incident.vitals?.spo2} colors={colors} />
+                    <VitalChip label="FH" value={task.incident.vitals?.fh} colors={colors} />
+                  </View>
+                </View>
+              )}
+
+              {hasMaternityVitals(task.incident.maternityVitals) && (
+                <View style={[styles.noteBox, { backgroundColor: colors.noteBg, marginTop: 8 }]}>
+                  <AppText size={12} bold muted style={{ marginBottom: 8 }}>
+                    Maternity vitals
+                  </AppText>
+                  <View style={styles.vitalRow}>
+                    <VitalChip label="Parity" value={task.incident.maternityVitals?.parity} colors={colors} />
+                    <VitalChip label="Gravid" value={task.incident.maternityVitals?.gravid} colors={colors} />
+                    <VitalChip label="FHR" value={task.incident.maternityVitals?.fetalHeartRate} colors={colors} />
+                    <VitalChip label="Dilatation" value={task.incident.maternityVitals?.cervicalDilatation} colors={colors} />
+                    <VitalChip label="BP" value={task.incident.maternityVitals?.bp} colors={colors} />
+                    <VitalChip label="Pulse" value={task.incident.maternityVitals?.pulse} colors={colors} />
+                    <VitalChip label="Temp" value={task.incident.maternityVitals?.temperature} colors={colors} />
+                    <VitalChip label="SPO₂" value={task.incident.maternityVitals?.spo2} colors={colors} />
+                  </View>
                 </View>
               )}
 
@@ -260,6 +377,8 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   caseNumber: { fontSize: 18, fontWeight: '800' },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  tag: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   complaint: { fontSize: 16, lineHeight: 24, marginBottom: 16 },
   locationRow: {
     flexDirection: 'row',
@@ -276,6 +395,15 @@ const styles = StyleSheet.create({
   noteBox: { padding: 14, borderRadius: 12, marginTop: 4 },
   noteLabel: { fontSize: 12, fontWeight: '700', marginBottom: 4 },
   noteText: { fontSize: 14, lineHeight: 20 },
+  vitalRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  vitalChip: {
+    minWidth: '30%',
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',

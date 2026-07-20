@@ -18,3 +18,10 @@ export function getApiBaseUrl(): string {
 export function getSocketUrl(): string {
   return process.env.EXPO_PUBLIC_SOCKET_URL?.replace(/\/$/, '') ?? getApiBaseUrl();
 }
+
+/** Same key as web `VITE_GOOGLE_MAPS_KEY` — enable Directions + Maps SDK. */
+export function getGoogleMapsKey(): string | null {
+  const key = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY?.trim();
+  return key || null;
+}
+

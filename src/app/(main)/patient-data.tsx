@@ -16,13 +16,44 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { submitPatientData } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
+import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useTheme } from '@/context/ThemeContext';
+
+function VitalsSummary({
+  title,
+  rows,
+  colors,
+}: {
+  title: string;
+  rows: Array<[string, string | undefined | null]>;
+  colors: { card: string; border: string; text: string; textSecondary: string; textMuted: string };
+}) {
+  const filled = rows.filter(([, value]) => Boolean(value && String(value).trim()));
+  if (!filled.length) return null;
+
+  return (
+    <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.summaryTitle, { color: colors.text }]}>{title}</Text>
+      {filled.map(([label, value]) => (
+        <View key={label} style={styles.summaryRow}>
+          <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>{label}</Text>
+          <Text style={[styles.summaryValue, { color: colors.textSecondary }]}>{value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function PatientDataScreen() {
   const { colors } = useTheme();
+  const { task } = useActiveTaskContext();
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
-  const [preHospitalManagement, setPreHospitalManagement] = useState('');
-  const [dispatcherChallenges, setDispatcherChallenges] = useState('');
+  const [preHospitalManagement, setPreHospitalManagement] = useState(
+    task?.incident.preHospitalManagement ?? ''
+  );
+  const [dispatcherChallenges, setDispatcherChallenges] = useState(
+    task?.incident.dispatcherChallenges ?? ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -47,6 +78,9 @@ export default function PatientDataScreen() {
     }
   };
 
+  const vitals = task?.incident.vitals;
+  const maternity = task?.incident.maternityVitals;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
@@ -60,6 +94,36 @@ export default function PatientDataScreen() {
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+            <VitalsSummary
+              title="Watcher vitals (read-only)"
+              colors={colors}
+              rows={[
+                ['Temp', vitals?.temperature],
+                ['Pulse', vitals?.pulseRate],
+                ['RR', vitals?.respirationRate],
+                ['BP', vitals?.bp],
+                ['SPO₂', vitals?.spo2],
+                ['FH', vitals?.fh],
+              ]}
+            />
+
+            <VitalsSummary
+              title="Maternity vitals (read-only)"
+              colors={colors}
+              rows={[
+                ['Parity', maternity?.parity],
+                ['Gravid', maternity?.gravid],
+                ['FHR', maternity?.fetalHeartRate],
+                ['Dilatation', maternity?.cervicalDilatation],
+                ['BP', maternity?.bp],
+                ['Pulse', maternity?.pulse],
+                ['Temp', maternity?.temperature],
+                ['SPO₂', maternity?.spo2],
+                ['Mode of delivery', maternity?.modeOfDelivery],
+                ['Baby condition', maternity?.conditionOfBaby],
+              ]}
+            />
+
             <Text style={[styles.label, { color: colors.text }]}>Pre-hospital management *</Text>
             <Text style={[styles.hint, { color: colors.textSecondary }]}>
               Vitals, interventions, patient condition, and treatment given.
@@ -132,6 +196,21 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '600' },
   form: { padding: 20, paddingBottom: 40 },
+  summaryCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 18,
+  },
+  summaryTitle: { fontSize: 14, fontWeight: '700', marginBottom: 10 },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 6,
+  },
+  summaryLabel: { fontSize: 13, fontWeight: '600' },
+  summaryValue: { fontSize: 13, flex: 1, textAlign: 'right' },
   label: { fontSize: 15, fontWeight: '700' },
   hint: { fontSize: 13, marginTop: 4, marginBottom: 10 },
   textarea: {

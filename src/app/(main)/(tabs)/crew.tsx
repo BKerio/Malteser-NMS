@@ -1,5 +1,6 @@
 import React from 'react';
-import { Linking, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { router, type Href } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
@@ -191,13 +192,13 @@ export default function CrewScreen() {
               <TouchableOpacity
                 style={[styles.mapBtn, { backgroundColor: colors.brandNavy }]}
                 onPress={() => {
-                  const { lat, lng } = task.incident;
-                  const url = Platform.select({
-                    ios: `maps:0,0?q=${lat},${lng}`,
-                    android: `geo:${lat},${lng}?q=${lat},${lng}`,
-                    default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-                  });
-                  if (url) Linking.openURL(url);
+                  const { lat, lng, locationName } = task.incident;
+                  const qs = new URLSearchParams({
+                    lat: String(lat),
+                    lng: String(lng),
+                    label: locationName || 'Incident scene',
+                  }).toString();
+                  router.push((`/(main)/navigate?${qs}` as unknown) as Href);
                 }}
               >
                 <Ionicons name="navigate" size={20} color={colors.onPrimary} />

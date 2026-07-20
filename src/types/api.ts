@@ -64,6 +64,44 @@ export interface TaskHistoryItem {
   vehicle: Pick<Vehicle, 'id' | 'registrationNumber'>;
 }
 
+export interface PatientVitals {
+  temperature?: string;
+  pulseRate?: string;
+  respirationRate?: string;
+  bp?: string;
+  spo2?: string;
+  fh?: string;
+}
+
+export interface MaternityVitals {
+  admissionDateTime?: string;
+  parity?: string;
+  gravid?: string;
+  fetalHeartRate?: string;
+  membranes?: string;
+  characterOfLiquor?: string;
+  moulding?: string;
+  cervicalDilatation?: string;
+  descent?: string;
+  uterineContraction?: string;
+  medicationsFetal?: string;
+  bp?: string;
+  pulse?: string;
+  temperature?: string;
+  rbs?: string;
+  spo2?: string;
+  gcs?: string;
+  proteinInUrine?: string;
+  glucoseInUrine?: string;
+  urineOutput?: string;
+  deliveryDateTime?: string;
+  modeOfDelivery?: string;
+  newbornGender?: string;
+  birthWeight?: string;
+  conditionOfBaby?: string;
+  medicationNewborn?: string;
+}
+
 export interface Incident {
   id: string;
   caseNumber: string;
@@ -77,9 +115,22 @@ export interface Incident {
   patientAge?: string | null;
   patientGender?: string | null;
   patientContact?: string | null;
+  patientNhif?: string | null;
+  nextOfKin?: string | null;
+  nextOfKinPhone?: string | null;
+  alertNature?: string | null;
+  alertNatureDetail?: string | null;
+  placeOfReferral?: string | null;
+  isGbvCase?: boolean;
   dispatcherComments?: string | null;
+  dispatcherChallenges?: string | null;
   preHospitalManagement?: string | null;
+  watcherComments?: string | null;
+  partnerNotes?: string | null;
   massCasualty: boolean;
+  massCasualtyCount?: number | null;
+  vitals?: PatientVitals | null;
+  maternityVitals?: MaternityVitals | null;
 }
 
 export interface Task {

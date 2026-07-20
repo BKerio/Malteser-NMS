@@ -36,7 +36,7 @@ export default function MainLayout() {
             }}
           />
           <Drawer.Screen
-            name="pcr-viewer"
+            name="navigate"
             options={{
               drawerItemStyle: { display: 'none' },
               swipeEnabled: false,
