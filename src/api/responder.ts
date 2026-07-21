@@ -35,6 +35,11 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], r
   return res.data.data;
 }
 
+export async function closeIncident(incidentId: string, reason: string) {
+  const res = await client.post<ApiResponse<unknown>>(`/incidents/${incidentId}/close`, { reason });
+  return res.data.data;
+}
+
 export async function submitPatientData(
   taskId: string,
   data: { preHospitalManagement: string; dispatcherChallenges?: string }

@@ -15,11 +15,12 @@ import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
 import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
+import EndCaseModal from '@/components/assignment/EndCaseModal';
 import { useAuth } from '@/context/AuthContext';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
-import { updateTaskStatus } from '@/api/responder';
+import { updateTaskStatus, closeIncident } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
 import { ACTION_LABELS, getNextStatus } from '@/utils/taskStatus';
 import type { MaternityVitals, PatientVitals, TaskStatus } from '@/types/api';
@@ -54,6 +55,8 @@ export default function AssignmentScreen() {
   const { myVehicle } = useCrewCheckIn();
   const { task, isLoading, isRefreshing, error, refresh } = useActiveTaskContext();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showEndCase, setShowEndCase] = useState(false);
+  const [isEndingCase, setIsEndingCase] = useState(false);
 
   const handleStatusUpdate = async () => {
     if (!task) return;
@@ -100,6 +103,40 @@ export default function AssignmentScreen() {
       label: locationName || 'Incident scene',
     }).toString();
     router.push((`/(main)/navigate?${qs}` as unknown) as Href);
+  };
+
+  const handleEndCase = async (reason: string) => {
+    if (!task) return;
+    setIsEndingCase(true);
+    try {
+      await closeIncident(task.incidentId, reason);
+      setShowEndCase(false);
+      Toast.show({
+        type: 'success',
+        text1: 'Case ended',
+        text2: 'The case has been closed and saved to the record.',
+        position: 'bottom',
+        bottomOffset: 90,
+      });
+      if (user?.role === 'DRIVER') {
+        const qs = new URLSearchParams({
+          taskId: task.id,
+          caseNumber: task.incident.caseNumber,
+        }).toString();
+        router.push((`/(main)/patient-care-report?${qs}` as unknown) as Href);
+      }
+      refresh();
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Could not end case',
+        text2: getErrorMessage(err),
+        position: 'bottom',
+        bottomOffset: 90,
+      });
+    } finally {
+      setIsEndingCase(false);
+    }
   };
 
   const nextStatus = task ? getNextStatus(task.status as TaskStatus) : null;
@@ -328,6 +365,19 @@ export default function AssignmentScreen() {
             </TouchableOpacity>
 
             {user?.role === 'DRIVER' && (
+              <TouchableOpacity
+                style={[styles.endCaseBtn, { borderColor: colors.danger, backgroundColor: colors.dangerBg }]}
+                onPress={() => setShowEndCase(true)}
+                disabled={isEndingCase}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
+                <AppText size={15} bold color={colors.danger}>
+                  End case (any stage)
+                </AppText>
+              </TouchableOpacity>
+            )}
+
+            {user?.role === 'DRIVER' && (
               <View style={[styles.gpsBanner, { backgroundColor: colors.successBg }]}>
                 <Ionicons name="navigate-circle" size={18} color={colors.success} />
                 <AppText size={13} color={colors.success}>
@@ -338,6 +388,16 @@ export default function AssignmentScreen() {
           </>
         )}
       </ScrollView>
+
+      {task && (
+        <EndCaseModal
+          visible={showEndCase}
+          caseNumber={task.incident.caseNumber}
+          isSubmitting={isEndingCase}
+          onClose={() => setShowEndCase(false)}
+          onConfirm={handleEndCase}
+        />
+      )}
     </View>
   );
 }
@@ -423,6 +483,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     height: 52,
     borderWidth: 1,
+    marginBottom: 12,
+  },
+  endCaseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 16,
+    height: 52,
+    borderWidth: 1.5,
     marginBottom: 12,
   },
   secondaryBtnText: { fontSize: 15, fontWeight: '600' },

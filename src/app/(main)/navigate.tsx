@@ -11,17 +11,16 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
 import { getGoogleMapsKey } from '@/config/env';
 import { useTheme } from '@/context/ThemeContext';
 import { fetchDrivingRoute, type DrivingRoute } from '@/services/googleDirections';
-import { openGoogleMapsNavigation } from '@/utils/openGoogleMapsNavigation';
 
 export default function NavigateScreen() {
   const { colors } = useTheme();
   const mapRef = useRef<MapView>(null);
+  const watchRef = useRef<Location.LocationSubscription | null>(null);
   const params = useLocalSearchParams<{
     lat?: string;
     lng?: string;
@@ -39,6 +38,31 @@ export default function NavigateScreen() {
   const [route, setRoute] = useState<DrivingRoute | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [navigating, setNavigating] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  const stopWatching = useCallback(() => {
+    watchRef.current?.remove();
+    watchRef.current = null;
+  }, []);
+
+  const fitRoute = useCallback(
+    (from: { lat: number; lng: number }, coords: Array<{ latitude: number; longitude: number }>) => {
+      if (!destination) return;
+      const all = [
+        { latitude: from.lat, longitude: from.lng },
+        ...coords,
+        { latitude: destination.lat, longitude: destination.lng },
+      ];
+      requestAnimationFrame(() => {
+        mapRef.current?.fitToCoordinates(all, {
+          edgePadding: { top: 60, right: 40, bottom: 80, left: 40 },
+          animated: true,
+        });
+      });
+    },
+    [destination]
+  );
 
   const loadRoute = useCallback(async () => {
     if (!destination) {
@@ -73,43 +97,81 @@ export default function NavigateScreen() {
 
       const next = await fetchDrivingRoute(from, destination);
       setRoute(next);
-
-      const coords = [
-        { latitude: from.lat, longitude: from.lng },
-        ...next.coordinates,
-        { latitude: destination.lat, longitude: destination.lng },
-      ];
-      requestAnimationFrame(() => {
-        mapRef.current?.fitToCoordinates(coords, {
-          edgePadding: { top: 60, right: 40, bottom: 80, left: 40 },
-          animated: true,
-        });
-      });
+      setStepIndex(0);
+      fitRoute(from, next.coordinates);
     } catch (err: any) {
       setRoute(null);
       setError(err?.message || 'Could not load route');
     } finally {
       setLoading(false);
     }
-  }, [destination]);
+  }, [destination, fitRoute]);
 
   useEffect(() => {
     loadRoute();
-  }, [loadRoute]);
+    return () => stopWatching();
+  }, [loadRoute, stopWatching]);
 
-  const startGoogleNav = async () => {
-    if (!destination) return;
-    try {
-      await openGoogleMapsNavigation(destination.lat, destination.lng);
-    } catch (err: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Could not open Google Maps',
-        text2: err?.message,
-        position: 'bottom',
-      });
+  const followCamera = useCallback((lat: number, lng: number, heading?: number | null) => {
+    mapRef.current?.animateCamera(
+      {
+        center: { latitude: lat, longitude: lng },
+        heading: heading ?? 0,
+        pitch: 45,
+        zoom: 17,
+      },
+      { duration: 600 }
+    );
+  }, []);
+
+  const startInAppNavigation = async () => {
+    if (!destination || !route) return;
+
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      setError('Location permission is required for navigation');
+      return;
+    }
+
+    setNavigating(true);
+    setStepIndex(0);
+    stopWatching();
+
+    watchRef.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 2000,
+        distanceInterval: 8,
+      },
+      (pos) => {
+        const nextOrigin = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        setOrigin(nextOrigin);
+        followCamera(nextOrigin.lat, nextOrigin.lng, pos.coords.heading);
+      }
+    );
+
+    if (origin) {
+      followCamera(origin.lat, origin.lng);
     }
   };
+
+  const stopInAppNavigation = () => {
+    setNavigating(false);
+    stopWatching();
+    if (origin && route) {
+      fitRoute(origin, route.coordinates);
+      mapRef.current?.animateCamera(
+        { pitch: 0, heading: 0 },
+        { duration: 400 }
+      );
+    }
+  };
+
+  const currentStep = route?.steps[stepIndex];
+  const nextStep = route?.steps[stepIndex + 1];
 
   const initialRegion = {
     latitude: destination?.lat ?? 0,
@@ -117,6 +179,8 @@ export default function NavigateScreen() {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   };
+
+  const useGoogleProvider = Boolean(getGoogleMapsKey());
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -127,23 +191,29 @@ export default function NavigateScreen() {
           <MapView
             ref={mapRef}
             style={StyleSheet.absoluteFill}
-            provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+            provider={useGoogleProvider ? PROVIDER_GOOGLE : undefined}
             initialRegion={initialRegion}
             showsUserLocation
-            showsMyLocationButton
+            showsMyLocationButton={!navigating}
+            showsCompass
+            showsTraffic
             toolbarEnabled={false}
+            rotateEnabled
+            pitchEnabled
           >
-            {origin && (
+            {!navigating && origin && (
               <Marker
                 coordinate={{ latitude: origin.lat, longitude: origin.lng }}
                 title="You"
                 pinColor={colors.accent}
+                tracksViewChanges={false}
               />
             )}
             <Marker
               coordinate={{ latitude: destination.lat, longitude: destination.lng }}
               title={destination.label}
               description="Incident scene"
+              tracksViewChanges={false}
             />
             {route?.coordinates?.length ? (
               <Polyline
@@ -167,9 +237,54 @@ export default function NavigateScreen() {
             </AppText>
           </View>
         )}
+
+        {!loading && (
+          <View style={[styles.trafficLegend, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.trafficDot, { backgroundColor: '#22c55e' }]} />
+            <View style={[styles.trafficDot, { backgroundColor: '#f59e0b' }]} />
+            <View style={[styles.trafficDot, { backgroundColor: '#ef4444' }]} />
+            <AppText size={11} muted>
+              Live traffic
+            </AppText>
+          </View>
+        )}
+
+        {navigating && currentStep && (
+          <View style={[styles.navBanner, { backgroundColor: colors.brandNavy }]}>
+            <AppText size={12} bold color={colors.onPrimary} style={{ opacity: 0.8 }}>
+              NEXT TURN
+            </AppText>
+            <AppText size={18} bold color={colors.onPrimary} style={{ marginTop: 4 }}>
+              {currentStep.instruction}
+            </AppText>
+            <AppText size={13} color={colors.onPrimary} style={{ marginTop: 4, opacity: 0.85 }}>
+              {currentStep.distanceText}
+              {nextStep ? ` · Then: ${nextStep.instruction}` : ''}
+            </AppText>
+            {route && stepIndex < route.steps.length - 1 && (
+              <TouchableOpacity
+                style={styles.skipStep}
+                onPress={() => setStepIndex((i) => Math.min(i + 1, (route?.steps.length ?? 1) - 1))}
+              >
+                <AppText size={13} bold color={colors.onPrimary}>
+                  Next instruction →
+                </AppText>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
-      <View style={[styles.panel, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+      <View
+        style={[
+          styles.panel,
+          {
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
+            maxHeight: navigating ? '34%' : '46%',
+          },
+        ]}
+      >
         {route ? (
           <>
             <View style={styles.etaRow}>
@@ -191,24 +306,29 @@ export default function NavigateScreen() {
               </View>
             </View>
 
-            <ScrollView style={styles.steps} showsVerticalScrollIndicator={false}>
-              {route.steps.slice(0, 8).map((step, i) => (
-                <View key={`${i}-${step.instruction}`} style={[styles.stepRow, { borderBottomColor: colors.border }]}>
-                  <View style={[styles.stepIndex, { backgroundColor: colors.noteBg }]}>
-                    <AppText size={12} bold muted>
-                      {i + 1}
-                    </AppText>
+            {!navigating && (
+              <ScrollView style={styles.steps} showsVerticalScrollIndicator={false}>
+                {route.steps.slice(0, 8).map((step, i) => (
+                  <View
+                    key={`${i}-${step.instruction}`}
+                    style={[styles.stepRow, { borderBottomColor: colors.border }]}
+                  >
+                    <View style={[styles.stepIndex, { backgroundColor: colors.noteBg }]}>
+                      <AppText size={12} bold muted>
+                        {i + 1}
+                      </AppText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppText size={14}>{step.instruction}</AppText>
+                      <AppText size={12} secondary style={{ marginTop: 2 }}>
+                        {step.distanceText}
+                        {step.durationText ? ` · ${step.durationText}` : ''}
+                      </AppText>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <AppText size={14}>{step.instruction}</AppText>
-                    <AppText size={12} secondary style={{ marginTop: 2 }}>
-                      {step.distanceText}
-                      {step.durationText ? ` · ${step.durationText}` : ''}
-                    </AppText>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            )}
           </>
         ) : (
           <AppText secondary style={{ marginBottom: 12 }}>
@@ -219,28 +339,45 @@ export default function NavigateScreen() {
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.secondaryBtn, { borderColor: colors.border }]}
-            onPress={loadRoute}
+            onPress={navigating ? stopInAppNavigation : loadRoute}
             disabled={loading}
           >
-            <Ionicons name="refresh" size={18} color={colors.primary} />
-            <AppText size={14} bold>
-              Refresh
+            <Ionicons
+              name={navigating ? 'stop-circle-outline' : 'refresh'}
+              size={18}
+              color={navigating ? colors.danger : colors.primary}
+            />
+            <AppText size={14} bold color={navigating ? colors.danger : undefined}>
+              {navigating ? 'Stop' : 'Refresh'}
             </AppText>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
-            onPress={startGoogleNav}
-            disabled={!destination}
+            style={[
+              styles.primaryBtn,
+              { backgroundColor: navigating ? colors.brandNavy : colors.accent },
+            ]}
+            onPress={navigating ? stopInAppNavigation : startInAppNavigation}
+            disabled={!destination || !route || loading}
           >
-            <Ionicons name="navigate" size={18} color={colors.onPrimary} />
+            <Ionicons
+              name={navigating ? 'checkmark-circle' : 'navigate'}
+              size={18}
+              color={colors.onPrimary}
+            />
             <AppText size={14} bold color={colors.onPrimary}>
-              Start Google Maps
+              {navigating ? 'Navigating…' : 'Start navigation'}
             </AppText>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+        <TouchableOpacity
+          onPress={() => {
+            stopInAppNavigation();
+            router.back();
+          }}
+          style={styles.backLink}
+        >
           <AppText size={13} muted>
             Back to assignment
           </AppText>
@@ -259,12 +396,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  trafficLegend: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  trafficDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  navBanner: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    borderRadius: 16,
+    padding: 14,
+  },
+  skipStep: { marginTop: 10, alignSelf: 'flex-start' },
   panel: {
     borderTopWidth: 1,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-    maxHeight: '46%',
   },
   etaRow: {
     flexDirection: 'row',

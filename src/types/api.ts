@@ -127,6 +127,7 @@ export interface Incident {
   preHospitalManagement?: string | null;
   watcherComments?: string | null;
   partnerNotes?: string | null;
+  closureReason?: string | null;
   massCasualty: boolean;
   massCasualtyCount?: number | null;
   vitals?: PatientVitals | null;

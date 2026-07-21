@@ -101,9 +101,12 @@ export default function ShiftCheckInCard() {
   const [pendingVehicleId, setPendingVehicleId] = useState<string | null>(null);
   const [isEndingShift, setIsEndingShift] = useState(false);
 
-  if (!user) return null;
+  const roleLabel = useMemo(
+    () => (user ? slotLabel(user.role) : ''),
+    [user]
+  );
 
-  const roleLabel = useMemo(() => slotLabel(user.role), [user.role]);
+  if (!user) return null;
 
   const handleCheckIn = async (vehicleId: string) => {
     setPendingVehicleId(vehicleId);
