@@ -1,6 +1,6 @@
 /** Preset reasons when a responder ends a case before the normal workflow completes. */
 export const CLOSURE_REASON_PRESETS = [
-  'Patient Receiveood',
+  'Patient Received',
   'Died on Scene',
   'Died on Transit',
   'Died on Arrival',
