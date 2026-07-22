@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,gg
+  Image,
   Pressable,
   StyleSheet,
   Text,
