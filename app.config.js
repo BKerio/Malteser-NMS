@@ -29,5 +29,12 @@ module.exports = {
         },
       },
     },
+    extra: {
+      ...(appJson.expo.extra || {}),
+      eas: {
+        ...(appJson.expo.extra?.eas || {}),
+        projectId: '04b3c784-8fe8-4c1d-aba4-03a652183c42',
+      },
+    },
   },
 };

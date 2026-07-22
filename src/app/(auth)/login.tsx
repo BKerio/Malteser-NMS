@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -52,10 +53,22 @@ export default function LoginScreen() {
   return (
     <AuthWrapper>
       <View style={styles.header}>
-        <View style={[styles.logoCircle, { backgroundColor: colors.locationBg }]}>
-          <Ionicons name="medical" size={32} color={colors.primary} />
+        <View style={styles.logoRow}>
+          <Image
+            source={require('../../../assets/images/nccg.png')}
+            style={styles.logoNccg}
+            resizeMode="contain"
+            accessibilityLabel="Nairobi City County"
+          />
+          <View style={[styles.logoDivider, { backgroundColor: colors.border }]} />
+          <Image
+            source={require('../../../assets/images/malteser.png')}
+            style={styles.logoMalteser}
+            resizeMode="contain"
+            accessibilityLabel="Malteser International"
+          />
         </View>
-        <Text style={[styles.title, { color: colors.text }]}>NMS Responder</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Emergency Operations Platform</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Sign in with your crew credentials to view assignments and update response status.
         </Text>
@@ -122,14 +135,16 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   header: { marginBottom: 40, alignItems: 'center' },
-  logoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
+  logoRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    gap: 18,
+    marginBottom: 20,
   },
+  logoNccg: { height: 46, width: 140 },
+  logoMalteser: { height: 38, width: 120 },
+  logoDivider: { width: 1, height: 40 },
   title: { fontSize: 26, fontWeight: '700', marginBottom: 10 },
   subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22, paddingHorizontal: 10 },
   form: { width: '100%' },
