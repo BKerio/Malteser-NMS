@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import {b
+import {
   ActivityIndicator,
   Image,
   Pressable,
