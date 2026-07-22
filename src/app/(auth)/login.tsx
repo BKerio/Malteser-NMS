@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import {g
+import {
   ActivityIndicator,
-  Image,
+  Image,hh
   Pressable,
   StyleSheet,
   Text,
