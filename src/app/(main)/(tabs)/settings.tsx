@@ -14,7 +14,7 @@ const WEIGHT_OPTIONS: { id: FontWeightOption; label: string; icon: string }[] = 
 ];
 
 export default function SettingsScreen() {
-  const { isDark, toggleTheme, colors } = useTheme();
+  const { colors } = useTheme();
   const {
     fontScale,
     fontWeight,
@@ -28,27 +28,9 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Settings" subtitle="Accessibility & appearance" />
+      <AppHeader title="Settings" subtitle="Accessibility" />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <AppText size={12} bold secondary style={styles.sectionLabel}>
-          APPEARANCE
-        </AppText>
-        <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
-          <View style={styles.row}>
-            <Ionicons name="moon-outline" size={22} color={colors.text} />
-            <AppText size={16} style={styles.rowLabel}>
-              Dark mode
-            </AppText>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: colors.border, true: colors.brandNavy }}
-              thumbColor="#fff"
-            />
-          </View>
-        </View>
-
         <AppText size={12} bold secondary style={styles.sectionLabel}>
           ACCESSIBILITY
         </AppText>

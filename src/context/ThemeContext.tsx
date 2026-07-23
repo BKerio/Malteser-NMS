@@ -1,8 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-type Theme = 'light' | 'dark';
 
 export interface ThemeColors {
   background: string;
@@ -35,9 +32,8 @@ export interface ThemeColors {
 }
 
 interface ThemeContextType {
-  theme: Theme;
-  isDark: boolean;
-  toggleTheme: () => void;
+  theme: 'light';
+  isDark: false;
   colors: ThemeColors;
 }
 
@@ -71,65 +67,17 @@ const LightColors: ThemeColors = {
   brandNavy: '#0a1d37',
 };
 
-const DarkColors: ThemeColors = {
-  background: '#0b1220',
-  surface: '#111827',
-  card: '#1e293b',
-  text: '#f1f5f9',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  primary: '#38bdf8',
-  accent: '#2dd4bf',
-  border: '#334155',
-  inputBg: '#1e293b',
-  inputText: '#f8fafc',
-  tabBar: '#111827',
-  tabActive: '#38bdf8',
-  tabInactive: '#64748b',
-  iconButton: '#1e293b',
-  headerBorder: '#1e293b',
-  drawerBg: '#111827',
-  overlay: 'rgba(0, 0, 0, 0.65)',
-  danger: '#f87171',
-  dangerBg: '#450a0a',
-  success: '#2dd4bf',
-  successBg: '#042f2e',
-  noteBg: '#0f172a',
-  locationBg: '#042f2e',
-  shadow: '#000000',
-  onPrimary: '#0a1d37',
-  brandNavy: '#0a1d37',
-};
-
 const THEME_STORAGE_KEY = 'nms_theme';
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemColorScheme = useColorScheme();
-  const [theme, setTheme] = useState<Theme>(systemColorScheme === 'dark' ? 'dark' : 'light');
-
   useEffect(() => {
-    AsyncStorage.getItem(THEME_STORAGE_KEY).then((stored) => {
-      if (stored === 'light' || stored === 'dark') {
-        setTheme(stored);
-      }
-    });
+    AsyncStorage.removeItem(THEME_STORAGE_KEY);
   }, []);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      AsyncStorage.setItem(THEME_STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
-
-  const isDark = theme === 'dark';
-  const colors = isDark ? DarkColors : LightColors;
 
   return (
-    <ThemeContext.Provider value={{ theme, isDark, toggleTheme, colors }}>
+    <ThemeContext.Provider value={{ theme: 'light', isDark: false, colors: LightColors }}>
       {children}
     </ThemeContext.Provider>
   );

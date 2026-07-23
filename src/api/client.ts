@@ -28,6 +28,10 @@ client.interceptors.response.use(
 
 export function getErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
+    if (!err.response) {
+      if (err.code === 'ECONNABORTED') return 'Request timed out. Check your connection.';
+      return `Cannot reach server (${getApiBaseUrl()}). Check network / API URL.`;
+    }
     return err.response?.data?.message ?? err.message ?? 'Request failed';
   }
   if (err instanceof Error) return err.message;

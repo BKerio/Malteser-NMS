@@ -47,7 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveAuth(result.token, result.user);
     setToken(result.token);
     setUser(result.user);
-    await connectSocket(result.user.id, result.user.role);
+    // Don't block login on realtime — socket may be slow/unreachable on device networks
+    connectSocket(result.user.id, result.user.role).catch(() => {});
   }, []);
 
   const logout = useCallback(async () => {
