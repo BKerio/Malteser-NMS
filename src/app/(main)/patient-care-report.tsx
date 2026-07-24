@@ -12,6 +12,7 @@ import { uploadPatientCareReport } from '@/api/responder';
 import { useTheme } from '@/context/ThemeContext';
 import { getErrorMessage } from '@/api/client';
 import { getPcrFileKind } from '@/utils/pcrFiles';
+import { preparePcrUploadFile } from '@/utils/pcrUpload';
 
 type SelectedFile = {
   uri: string;
@@ -36,7 +37,8 @@ export default function PatientCareReportScreen() {
   const pickFromLibrary = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.9,
+      quality: 0.55,
+      exif: false,
     });
     if (!res.canceled && res.assets[0]) {
       const asset = res.assets[0];
@@ -49,7 +51,10 @@ export default function PatientCareReportScreen() {
   };
 
   const takePhoto = async () => {
-    const res = await ImagePicker.launchCameraAsync({ quality: 0.9 });
+    const res = await ImagePicker.launchCameraAsync({
+      quality: 0.55,
+      exif: false,
+    });
     if (!res.canceled && res.assets[0]) {
       const asset = res.assets[0];
       setSelectedFile({
@@ -93,9 +98,10 @@ export default function PatientCareReportScreen() {
     }
     setIsUploading(true);
     try {
+      const file = await preparePcrUploadFile(selectedFile);
       await uploadPatientCareReport(taskId, {
         note: note.trim() || undefined,
-        file: selectedFile,
+        file,
       });
       Toast.show({
         type: 'success',

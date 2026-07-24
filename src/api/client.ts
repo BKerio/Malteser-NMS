@@ -39,6 +39,9 @@ export function getErrorMessage(err: unknown): string {
       if (err.code === 'ECONNABORTED') return 'Request timed out. Check your connection.';
       return `Cannot reach server (${getApiBaseUrl()}). Check network / API URL.`;
     }
+    if (err.response.status === 413) {
+      return 'File is too large. Use a smaller photo/PDF (under ~20MB) or take a new compressed photo.';
+    }
     return err.response?.data?.message ?? err.message ?? 'Request failed';
   }
   if (err instanceof Error) return err.message;

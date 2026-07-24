@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NMS Responder",
+    "name": "NCCG",
     "slug": "nms-responder",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +12,7 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Take a check-in selfie to start your shift.",
         "NSLocationWhenInUseUsageDescription": "Record where you checked in and share your ambulance location with dispatch during active assignments.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "NMS shares your ambulance location with dispatch during active assignments."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "NCCG shares your ambulance location with dispatch during active assignments."
       }
     },
     "android": {

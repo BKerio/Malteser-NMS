@@ -20,7 +20,7 @@ export default function MainLayout() {
             swipeEdgeWidth: 60,
           }}
         >
-          <Drawer.Screen name="(tabs)" options={{ title: 'NMS Responder' }} />
+          <Drawer.Screen name="(tabs)" options={{ title: 'NCCG' }} />
           <Drawer.Screen
             name="patient-data"
             options={{

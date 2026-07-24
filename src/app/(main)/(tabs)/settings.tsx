@@ -126,10 +126,10 @@ export default function SettingsScreen() {
             PREVIEW
           </AppText>
           <AppText size={20} bold>
-            NMS Responder
+            NCCG
           </AppText>
           <AppText size={15} secondary style={{ marginTop: 8, lineHeight: 22 }}>
-            NMS-001 - patient stable, en route to facility.
+            NCCG-001 - patient stable, en route to facility.
           </AppText>
         </View>
 
