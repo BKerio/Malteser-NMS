@@ -29,7 +29,7 @@ cp .env.example .env
 
 Ensure the backend is running and `CORS_ORIGIN=*` (or includes the Expo dev origin).
 
-## Run yyyyy
+## Run 
 
 ```bash
 npm start
