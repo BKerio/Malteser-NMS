@@ -168,7 +168,7 @@ export default function ShiftCheckInCard() {
             Shift check-in
           </AppText>
           <AppText size={13} secondary style={{ marginTop: 2 }}>
-            Check in to your ambulance before dispatch can assign cases.
+            Check in with a selfie and location before dispatch can assign cases.
           </AppText>
         </View>
       </View>
@@ -179,11 +179,11 @@ export default function ShiftCheckInCard() {
         title="Check in to vehicle?"
         message={
           confirmCheckInFor
-            ? `You will be checked in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}.`
+            ? `You will take a selfie, then check in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}.`
             : 'Continue?'
         }
         cancelLabel="Not yet"
-        confirmLabel="Check in"
+        confirmLabel="Take selfie & check in"
         onCancel={() => setConfirmCheckInFor(null)}
         onConfirm={() => {
           const v = confirmCheckInFor;

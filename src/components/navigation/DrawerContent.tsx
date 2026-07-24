@@ -15,9 +15,9 @@ import LogoutConfirmModal from '@/components/shared/LogoutConfirmModal';
 const ROLE_LABELS = { DRIVER: 'Driver', EMT: 'EMT', NURSE: 'Nurse' } as const;
 
 const NAV_ITEMS = [
-  { label: 'Assignment', icon: 'medical-outline', route: '/(main)/(tabs)/' as const },
   { label: 'Crew', icon: 'people-outline', route: '/(main)/(tabs)/crew' as const },
-  { label: 'Activity', icon: 'pulse-outline', route: '/(main)/(tabs)/activity' as const },
+  { label: 'Assignment', icon: 'medical-outline', route: '/(main)/(tabs)/' as const },
+  { label: 'History', icon: 'time-outline', route: '/(main)/(tabs)/history' as const },
   { label: 'Profile', icon: 'person-outline', route: '/(main)/(tabs)/profile' as const },
   { label: 'Settings', icon: 'settings-outline', route: '/(main)/(tabs)/settings' as const },
 ];
@@ -73,25 +73,25 @@ export default function DrawerContent(props: DrawerContentComponentProps) {
           <AppText size={20} bold color="#fff">
             {user?.name}
           </AppText>
-          <AppText size={13} color="#94a3b8" style={styles.meta}>
+          <AppText size={13} color="#7E988C" style={styles.meta}>
             {roleLabel}
           </AppText>
-          <AppText size={13} color="#cbd5e1" style={{ marginTop: 4 }}>
+          <AppText size={13} color="#DCEAE2" style={{ marginTop: 4 }}>
             {user?.email}
           </AppText>
 
           {task ? (
             <View style={styles.activeCase}>
-              <MaterialCommunityIcons name="ambulance" size={16} color="#5eead4" />
-              <AppText size={13} bold color="#e2e8f0" style={{ flex: 1 }}>
+              <MaterialCommunityIcons name="ambulance" size={16} color="#169A5B" />
+              <AppText size={13} bold color="#DCEAE2" style={{ flex: 1 }}>
                 {task.incident.caseNumber}
               </AppText>
               <StatusBadge status={task.status} />
             </View>
           ) : myVehicle ? (
             <View style={styles.activeCase}>
-              <MaterialCommunityIcons name="clipboard-check-outline" size={16} color="#5eead4" />
-              <AppText size={13} bold color="#e2e8f0" style={{ flex: 1 }}>
+              <MaterialCommunityIcons name="clipboard-check-outline" size={16} color="#169A5B" />
+              <AppText size={13} bold color="#DCEAE2" style={{ flex: 1 }}>
                 On shift · {myVehicle.registrationNumber}
               </AppText>
             </View>
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#0d9488',
+    backgroundColor: '#005A32',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontSize: 22, fontWeight: '800' },
   name: { color: '#fff', fontSize: 20, fontWeight: '700' },
   meta: {
-    color: '#94a3b8',
+    color: '#7E988C',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  email: { color: '#cbd5e1', fontSize: 13, marginTop: 4 },
+  email: { color: '#DCEAE2', fontSize: 13, marginTop: 4 },
   activeCase: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
   },
-  activeCaseText: { color: '#e2e8f0', fontWeight: '700', flex: 1, fontSize: 13 },
+  activeCaseText: { color: '#DCEAE2', fontWeight: '700', flex: 1, fontSize: 13 },
   nav: { paddingHorizontal: 12, paddingTop: 8, flex: 1 },
   navItem: {
     flexDirection: 'row',

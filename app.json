@@ -8,10 +8,10 @@
     "scheme": "nms-responder",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.nms.responder",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "NMS shares your ambulance location with dispatch during active assignments.",
+        "NSCameraUsageDescription": "Take a check-in selfie to start your shift.",
+        "NSLocationWhenInUseUsageDescription": "Record where you checked in and share your ambulance location with dispatch during active assignments.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "NMS shares your ambulance location with dispatch during active assignments."
       }
     },
@@ -20,14 +20,14 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "CAMERA",
         "INTERNET"
       ],
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#005A32",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -40,10 +40,12 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#005A32",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
           "android": {
             "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "imageWidth": 200
           }
         }
       ],
@@ -52,7 +54,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NMS shares your ambulance location with dispatch during active assignments."
+          "locationWhenInUsePermission": "Record where you checked in and share your ambulance location with dispatch during active assignments."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Take a check-in selfie to start your shift."
         }
       ]
     ],

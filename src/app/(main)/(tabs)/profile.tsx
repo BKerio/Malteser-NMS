@@ -53,10 +53,10 @@ export default function ProfileScreen() {
           <AppText size={22} bold color="#fff">
             {user?.name}
           </AppText>
-          <AppText size={13} color="#94a3b8" style={styles.role}>
+          <AppText size={13} color="#7E988C" style={styles.role}>
             {roleLabel}
           </AppText>
-          <AppText size={14} color="#cbd5e1" style={{ marginTop: 6 }}>
+          <AppText size={14} color="#DCEAE2" style={{ marginTop: 6 }}>
             {user?.email}
           </AppText>
         </View>
@@ -120,14 +120,14 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 28, fontWeight: '800' },
   name: { color: '#fff', fontSize: 22, fontWeight: '700' },
   role: {
-    color: '#94a3b8',
+    color: '#7E988C',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  email: { color: '#cbd5e1', fontSize: 14, marginTop: 6 },
+  email: { color: '#DCEAE2', fontSize: 14, marginTop: 6 },
   card: {
     borderRadius: 16,
     padding: 18,

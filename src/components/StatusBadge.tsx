@@ -4,14 +4,14 @@ import type { TaskStatus } from '@/types/api';
 import { STATUS_LABELS } from '@/utils/taskStatus';
 
 const COLORS: Record<TaskStatus, { bg: string; text: string }> = {
-  PENDING: { bg: '#fef3c7', text: '#b45309' },
-  ACCEPTED: { bg: '#dbeafe', text: '#1d4ed8' },
-  EN_ROUTE: { bg: '#e0e7ff', text: '#4338ca' },
-  AT_SCENE: { bg: '#fce7f3', text: '#be185d' },
-  PATIENT_PICKED: { bg: '#ffedd5', text: '#c2410c' },
-  AT_HOSPITAL: { bg: '#ccfbf1', text: '#0f766e' },
-  COMPLETED: { bg: '#dcfce7', text: '#15803d' },
-  CANCELLED: { bg: '#fee2e2', text: '#b91c1c' },
+  PENDING: { bg: '#FBF1DD', text: '#B7791F' },
+  ACCEPTED: { bg: '#E8EFFD', text: '#2563EB' },
+  EN_ROUTE: { bg: '#E8F3ED', text: '#005A32' },
+  AT_SCENE: { bg: '#EDF2EF', text: '#15211B' },
+  PATIENT_PICKED: { bg: '#FBF3DD', text: '#B7791F' },
+  AT_HOSPITAL: { bg: '#E8EFFD', text: '#2563EB' },
+  COMPLETED: { bg: '#E8F3ED', text: '#005A32' },
+  CANCELLED: { bg: '#FBEAEA', text: '#D62828' },
 };
 
 export default function StatusBadge({ status }: { status: TaskStatus }) {

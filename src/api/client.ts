@@ -13,6 +13,13 @@ client.interceptors.request.use(async (config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Default JSON Content-Type breaks FormData (missing boundary → "request is not multipart")
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (typeof config.headers.set === 'function') {
+      config.headers.set('Content-Type', undefined as unknown as string);
+    }
+    delete (config.headers as Record<string, unknown>)['Content-Type'];
+  }
   return config;
 });
 

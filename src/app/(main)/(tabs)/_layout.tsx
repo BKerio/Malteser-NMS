@@ -11,6 +11,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="crew"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.tabActive,
@@ -28,6 +29,15 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="crew"
+        options={{
+          title: 'Crew',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: 'Assignment',
@@ -43,30 +53,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="crew"
+        name="history"
         options={{
-          title: 'Crew',
+          title: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="activity"
-        options={{
-          title: 'Activity',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          href: null,
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
-          ),
         }}
       />
       <Tabs.Screen
