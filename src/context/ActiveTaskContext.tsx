@@ -9,7 +9,7 @@ interface ActiveTaskContextValue {
   isLoading: boolean;
   isRefreshing: boolean;
   error: string | null;
-  refresh: () => void;
+  refresh: (silent?: boolean) => Promise<void>;
 }
 
 const ActiveTaskContext = createContext<ActiveTaskContextValue | undefined>(undefined);

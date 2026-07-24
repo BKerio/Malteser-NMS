@@ -25,7 +25,7 @@ export const ACTION_LABELS: Partial<Record<TaskStatus, string>> = {
   ACCEPTED: 'Start En Route',
   EN_ROUTE: 'Arrived at Scene',
   AT_SCENE: 'Patient Picked Up',
-  PATIENT_PICKED: 'Arrived at Hospital',
+  PATIENT_PICKED: 'Arrived at the hospital',
   AT_HOSPITAL: 'Complete Task',
 };
 

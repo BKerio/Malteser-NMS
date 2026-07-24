@@ -1,26 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import AppHeader from '@/components/navigation/AppHeader';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import AppText from '@/components/shared/AppText';
+import { getErrorMessage } from '@/api/client';
+import { updateTaskStatus } from '@/api/responder';
 import { getGoogleMapsKey } from '@/config/env';
+import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useTheme } from '@/context/ThemeContext';
 import { fetchDrivingRoute, type DrivingRoute } from '@/services/googleDirections';
+import { ACTION_LABELS, getNextStatus } from '@/utils/taskStatus';
+import type { TaskStatus } from '@/types/api';
 
 export default function NavigateScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const { task, refresh } = useActiveTaskContext();
   const params = useLocalSearchParams<{
     lat?: string;
     lng?: string;
@@ -30,16 +36,33 @@ export default function NavigateScreen() {
   const destination = useMemo(() => {
     const lat = Number(params.lat);
     const lng = Number(params.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      if (task?.incident?.lat != null && task?.incident?.lng != null) {
+        return {
+          lat: task.incident.lat,
+          lng: task.incident.lng,
+          label: task.incident.locationName || 'Incident scene',
+        };
+      }
+      return null;
+    }
     return { lat, lng, label: params.label || 'Incident scene' };
-  }, [params.lat, params.lng, params.label]);
+  }, [params.lat, params.lng, params.label, task]);
 
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [route, setRoute] = useState<DrivingRoute | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [navigating, setNavigating] = useState(false);
-  const [stepIndex, setStepIndex] = useState(0);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const nextStatus = task ? getNextStatus(task.status as TaskStatus) : null;
+  const actionLabel = task ? ACTION_LABELS[task.status as TaskStatus] : null;
+  const showHospitalArrival =
+    task?.status === 'PATIENT_PICKED' || nextStatus === 'AT_HOSPITAL';
+  const floatingLabel = showHospitalArrival
+    ? 'Arrived at the hospital'
+    : actionLabel;
 
   const stopWatching = useCallback(() => {
     watchRef.current?.remove();
@@ -56,7 +79,7 @@ export default function NavigateScreen() {
       ];
       requestAnimationFrame(() => {
         mapRef.current?.fitToCoordinates(all, {
-          edgePadding: { top: 60, right: 40, bottom: 80, left: 40 },
+          edgePadding: { top: 100, right: 40, bottom: 160, left: 40 },
           animated: true,
         });
       });
@@ -97,7 +120,6 @@ export default function NavigateScreen() {
 
       const next = await fetchDrivingRoute(from, destination);
       setRoute(next);
-      setStepIndex(0);
       fitRoute(from, next.coordinates);
     } catch (err: any) {
       setRoute(null);
@@ -125,7 +147,7 @@ export default function NavigateScreen() {
   }, []);
 
   const startInAppNavigation = async () => {
-    if (!destination || !route) return;
+    if (!destination) return;
 
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) {
@@ -134,7 +156,6 @@ export default function NavigateScreen() {
     }
 
     setNavigating(true);
-    setStepIndex(0);
     stopWatching();
 
     watchRef.current = await Location.watchPositionAsync(
@@ -163,15 +184,52 @@ export default function NavigateScreen() {
     stopWatching();
     if (origin && route) {
       fitRoute(origin, route.coordinates);
-      mapRef.current?.animateCamera(
-        { pitch: 0, heading: 0 },
-        { duration: 400 }
-      );
+      mapRef.current?.animateCamera({ pitch: 0, heading: 0 }, { duration: 400 });
     }
   };
 
-  const currentStep = route?.steps[stepIndex];
-  const nextStep = route?.steps[stepIndex + 1];
+  const handleFloatingAction = async () => {
+    if (!task || !nextStatus) return;
+
+    setIsUpdating(true);
+    try {
+      await updateTaskStatus(task.id, nextStatus);
+      Toast.show({
+        type: 'success',
+        text1: 'Status updated',
+        text2: floatingLabel || ACTION_LABELS[task.status],
+        position: 'bottom',
+        bottomOffset: 120,
+      });
+
+      if (nextStatus === 'COMPLETED') {
+        stopInAppNavigation();
+        const qs = new URLSearchParams({
+          taskId: task.id,
+          caseNumber: task.incident.caseNumber,
+        }).toString();
+        router.replace((`/(main)/patient-care-report?${qs}` as unknown) as Href);
+        return;
+      }
+
+      if (nextStatus === 'AT_HOSPITAL') {
+        stopInAppNavigation();
+        router.replace('/(main)/(tabs)/activity');
+      }
+
+      refresh();
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Update failed',
+        text2: getErrorMessage(err),
+        position: 'bottom',
+        bottomOffset: 120,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const initialRegion = {
     latitude: destination?.lat ?? 0,
@@ -184,8 +242,6 @@ export default function NavigateScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Navigate to scene" subtitle={destination?.label} showBack />
-
       <View style={styles.mapWrap}>
         {destination ? (
           <MapView
@@ -194,8 +250,8 @@ export default function NavigateScreen() {
             provider={useGoogleProvider ? PROVIDER_GOOGLE : undefined}
             initialRegion={initialRegion}
             showsUserLocation
-            showsMyLocationButton={!navigating}
-            showsCompass
+            showsMyLocationButton={false}
+            showsCompass={false}
             showsTraffic
             toolbarEnabled={false}
             rotateEnabled
@@ -212,7 +268,7 @@ export default function NavigateScreen() {
             <Marker
               coordinate={{ latitude: destination.lat, longitude: destination.lng }}
               title={destination.label}
-              description="Incident scene"
+              description="Destination"
               tracksViewChanges={false}
             />
             {route?.coordinates?.length ? (
@@ -238,150 +294,78 @@ export default function NavigateScreen() {
           </View>
         )}
 
-        {!loading && (
-          <View style={[styles.trafficLegend, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.trafficDot, { backgroundColor: '#22c55e' }]} />
-            <View style={[styles.trafficDot, { backgroundColor: '#f59e0b' }]} />
-            <View style={[styles.trafficDot, { backgroundColor: '#ef4444' }]} />
-            <AppText size={11} muted>
-              Live traffic
-            </AppText>
-          </View>
-        )}
-
-        {navigating && currentStep && (
-          <View style={[styles.navBanner, { backgroundColor: colors.brandNavy }]}>
-            <AppText size={12} bold color={colors.onPrimary} style={{ opacity: 0.8 }}>
-              NEXT TURN
-            </AppText>
-            <AppText size={18} bold color={colors.onPrimary} style={{ marginTop: 4 }}>
-              {currentStep.instruction}
-            </AppText>
-            <AppText size={13} color={colors.onPrimary} style={{ marginTop: 4, opacity: 0.85 }}>
-              {currentStep.distanceText}
-              {nextStep ? ` · Then: ${nextStep.instruction}` : ''}
-            </AppText>
-            {route && stepIndex < route.steps.length - 1 && (
-              <TouchableOpacity
-                style={styles.skipStep}
-                onPress={() => setStepIndex((i) => Math.min(i + 1, (route?.steps.length ?? 1) - 1))}
-              >
-                <AppText size={13} bold color={colors.onPrimary}>
-                  Next instruction →
-                </AppText>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </View>
-
-      <View
-        style={[
-          styles.panel,
-          {
-            backgroundColor: colors.card,
-            borderTopColor: colors.border,
-            maxHeight: navigating ? '34%' : '46%',
-          },
-        ]}
-      >
-        {route ? (
-          <>
-            <View style={styles.etaRow}>
-              <View>
-                <AppText size={12} muted bold>
-                  ETA WITH TRAFFIC
-                </AppText>
-                <AppText size={22} bold style={{ marginTop: 2 }}>
-                  {route.durationText}
-                </AppText>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <AppText size={12} muted bold>
-                  DISTANCE
-                </AppText>
-                <AppText size={18} bold style={{ marginTop: 2 }}>
-                  {route.distanceText}
-                </AppText>
-              </View>
-            </View>
-
-            {!navigating && (
-              <ScrollView style={styles.steps} showsVerticalScrollIndicator={false}>
-                {route.steps.slice(0, 8).map((step, i) => (
-                  <View
-                    key={`${i}-${step.instruction}`}
-                    style={[styles.stepRow, { borderBottomColor: colors.border }]}
-                  >
-                    <View style={[styles.stepIndex, { backgroundColor: colors.noteBg }]}>
-                      <AppText size={12} bold muted>
-                        {i + 1}
-                      </AppText>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <AppText size={14}>{step.instruction}</AppText>
-                      <AppText size={12} secondary style={{ marginTop: 2 }}>
-                        {step.distanceText}
-                        {step.durationText ? ` · ${step.durationText}` : ''}
-                      </AppText>
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </>
-        ) : (
-          <AppText secondary style={{ marginBottom: 12 }}>
-            {error || 'Route unavailable'}
-          </AppText>
-        )}
-
-        <View style={styles.actions}>
+        {/* Top overlays */}
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity
-            style={[styles.secondaryBtn, { borderColor: colors.border }]}
-            onPress={navigating ? stopInAppNavigation : loadRoute}
-            disabled={loading}
+            style={[styles.roundBtn, { backgroundColor: colors.card }]}
+            onPress={() => {
+              stopInAppNavigation();
+              router.back();
+            }}
           >
-            <Ionicons
-              name={navigating ? 'stop-circle-outline' : 'refresh'}
-              size={18}
-              color={navigating ? colors.danger : colors.primary}
-            />
-            <AppText size={14} bold color={navigating ? colors.danger : undefined}>
-              {navigating ? 'Stop' : 'Refresh'}
-            </AppText>
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
 
+          <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
+            <AppText size={13} bold numberOfLines={1}>
+              {task?.incident.caseNumber || destination?.label || 'Navigation'}
+            </AppText>
+            {route ? (
+              <AppText size={12} secondary>
+                {route.durationText} · {route.distanceText}
+              </AppText>
+            ) : error ? (
+              <AppText size={12} color={colors.danger} numberOfLines={1}>
+                {error}
+              </AppText>
+            ) : null}
+          </View>
+
           <TouchableOpacity
-            style={[
-              styles.primaryBtn,
-              { backgroundColor: navigating ? colors.brandNavy : colors.accent },
-            ]}
+            style={[styles.roundBtn, { backgroundColor: colors.card }]}
             onPress={navigating ? stopInAppNavigation : startInAppNavigation}
-            disabled={!destination || !route || loading}
+            disabled={!destination || loading}
           >
             <Ionicons
-              name={navigating ? 'checkmark-circle' : 'navigate'}
-              size={18}
-              color={colors.onPrimary}
+              name={navigating ? 'pause' : 'navigate'}
+              size={20}
+              color={navigating ? colors.danger : colors.primary}
             />
-            <AppText size={14} bold color={colors.onPrimary}>
-              {navigating ? 'Navigating…' : 'Start navigation'}
-            </AppText>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          onPress={() => {
-            stopInAppNavigation();
-            router.back();
-          }}
-          style={styles.backLink}
-        >
-          <AppText size={13} muted>
-            Back to assignment
-          </AppText>
-        </TouchableOpacity>
+        {/* Floating status CTA */}
+        {task && nextStatus && floatingLabel ? (
+          <View style={[styles.fabWrap, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <TouchableOpacity
+              style={[
+                styles.fab,
+                {
+                  backgroundColor: showHospitalArrival ? colors.primary : colors.accent,
+                },
+                isUpdating && styles.fabDisabled,
+              ]}
+              onPress={handleFloatingAction}
+              disabled={isUpdating}
+              activeOpacity={0.9}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons
+                    name={showHospitalArrival ? 'hospital-building' : 'map-marker-check'}
+                    size={22}
+                    color={colors.onPrimary}
+                  />
+                  <AppText size={16} bold color={colors.onPrimary}>
+                    {floatingLabel}
+                  </AppText>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -389,89 +373,63 @@ export default function NavigateScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  mapWrap: { flex: 1, minHeight: 260 },
+  mapWrap: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trafficLegend: {
+  topBar: {
     position: 'absolute',
-    bottom: 12,
+    top: 0,
     left: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 10,
+  },
+  roundBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  metaChip: {
+    flex: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  trafficDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  navBanner: {
+  fabWrap: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
-    borderRadius: 16,
-    padding: 14,
+    left: 16,
+    right: 16,
+    bottom: 0,
   },
-  skipStep: { marginTop: 10, alignSelf: 'flex-start' },
-  panel: {
-    borderTopWidth: 1,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-  },
-  etaRow: {
+  fab: {
+    height: 56,
+    borderRadius: 18,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 10,
-  },
-  steps: { maxHeight: 160, marginBottom: 12 },
-  stepRow: {
-    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  stepIndex: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actions: { flexDirection: 'row', gap: 10 },
-  secondaryBtn: {
-    flex: 1,
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  primaryBtn: {
-    flex: 1.4,
-    height: 48,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  backLink: { alignItems: 'center', marginTop: 10 },
+  fabDisabled: { opacity: 0.75 },
 });

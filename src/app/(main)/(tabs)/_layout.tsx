@@ -53,6 +53,21 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="activity"
+        options={{
+          title: 'Activity',
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'timeline-clock' : 'timeline-clock-outline'}
+              size={24}
+              color={color}
+            />
+          ),
+          tabBarBadge: hasTask ? ' ' : undefined,
+          tabBarBadgeStyle: [styles.badge, { backgroundColor: colors.accent }],
+        }}
+      />
+      <Tabs.Screen
         name="history"
         options={{
           title: 'History',

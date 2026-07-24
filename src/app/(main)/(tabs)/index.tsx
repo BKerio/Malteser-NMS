@@ -58,6 +58,26 @@ export default function AssignmentScreen() {
   const [showEndCase, setShowEndCase] = useState(false);
   const [isEndingCase, setIsEndingCase] = useState(false);
 
+  const openMaps = () => {
+    if (!task?.incident?.lat || !task?.incident?.lng) {
+      Toast.show({
+        type: 'info',
+        text1: 'No map coordinates',
+        text2: 'This case has no scene location pinned.',
+        position: 'bottom',
+        bottomOffset: 90,
+      });
+      return;
+    }
+    const { lat, lng, locationName } = task.incident;
+    const qs = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+      label: locationName || 'Incident scene',
+    }).toString();
+    router.push((`/(main)/navigate?${qs}` as unknown) as Href);
+  };
+
   const handleStatusUpdate = async () => {
     if (!task) return;
     const next = getNextStatus(task.status);
@@ -73,12 +93,18 @@ export default function AssignmentScreen() {
         position: 'bottom',
         bottomOffset: 90,
       });
+      if (next === 'ACCEPTED') {
+        refresh();
+        openMaps();
+        return;
+      }
       if (next === 'COMPLETED') {
         const qs = new URLSearchParams({
           taskId: task.id,
           caseNumber: task.incident.caseNumber,
         }).toString();
         router.push((`/(main)/patient-care-report?${qs}` as unknown) as Href);
+        return;
       }
       refresh();
     } catch (err) {
@@ -94,17 +120,6 @@ export default function AssignmentScreen() {
     }
   };
 
-  const openMaps = () => {
-    if (!task?.incident?.lat || !task?.incident?.lng) return;
-    const { lat, lng, locationName } = task.incident;
-    const qs = new URLSearchParams({
-      lat: String(lat),
-      lng: String(lng),
-      label: locationName || 'Incident scene',
-    }).toString();
-    router.push((`/(main)/navigate?${qs}` as unknown) as Href);
-  };
-
   const handleEndCase = async (reason: string) => {
     if (!task) return;
     setIsEndingCase(true);
@@ -114,7 +129,7 @@ export default function AssignmentScreen() {
       Toast.show({
         type: 'success',
         text1: 'Case ended',
-        text2: 'The case has been closed and saved to the record.',
+        text2: 'Saved to History with stage timestamps.',
         position: 'bottom',
         bottomOffset: 90,
       });
@@ -124,6 +139,8 @@ export default function AssignmentScreen() {
           caseNumber: task.incident.caseNumber,
         }).toString();
         router.push((`/(main)/patient-care-report?${qs}` as unknown) as Href);
+      } else {
+        router.push('/(main)/(tabs)/history');
       }
       refresh();
     } catch (err) {

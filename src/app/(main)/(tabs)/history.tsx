@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -11,13 +11,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
+import ActivityTimeline from '@/components/ActivityTimeline';
 import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getPatientCareReports, getTaskHistory } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
-import { STATUS_LABELS } from '@/utils/taskStatus';
+import { buildTaskActivities, formatActivityTime } from '@/utils/taskActivities';
 import type { PaginatedMeta, PatientCareReport, TaskHistoryItem } from '@/types/api';
 import { getPcrFileKind } from '@/utils/pcrFiles';
 
@@ -28,32 +29,6 @@ function fileTypeLabel(mimeType: string) {
   if (kind === 'docx') return 'DOCX';
   return 'File';
 }
-
-function formatTime(iso?: string | null) {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch {
-    return null;
-  }
-}
-
-const MILESTONES = [
-  { key: 'receivedAt', label: 'Dispatched' },
-  { key: 'acceptedAt', label: STATUS_LABELS.ACCEPTED },
-  { key: 'sceneArrivalAt', label: 'Arrived at scene' },
-  { key: 'patientPickAt', label: STATUS_LABELS.PATIENT_PICKED },
-  { key: 'facilityArrivalAt', label: 'Arrived at hospital' },
-  { key: 'completedAt', label: STATUS_LABELS.COMPLETED },
-  { key: 'cancelledAt', label: STATUS_LABELS.CANCELLED },
-] as const;
-
-type MilestoneKey = (typeof MILESTONES)[number]['key'];
 
 function AssignmentCard({
   item,
@@ -80,11 +55,7 @@ function AssignmentCard({
 }) {
   const endedAt = item.completedAt ?? item.cancelledAt ?? item.receivedAt;
   const pcrCount = item.pcrCount ?? 0;
-  const stages = MILESTONES.map(({ key, label }) => ({
-    key,
-    label,
-    time: formatTime(item[key as MilestoneKey]),
-  })).filter((s) => s.time);
+  const activities = useMemo(() => buildTaskActivities(item, { live: false }), [item]);
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
@@ -103,8 +74,9 @@ function AssignmentCard({
             {item.vehicle.registrationNumber} · {item.incident.locationName}
           </AppText>
           <AppText size={12} muted style={{ marginTop: 2 }}>
-            {formatTime(endedAt)}
+            {formatActivityTime(endedAt)}
             {pcrCount > 0 ? ` · ${pcrCount} PCR` : ''}
+            {activities.length > 0 ? ` · ${activities.filter((a) => a.timestamp).length} stages` : ''}
           </AppText>
         </View>
         <Ionicons
@@ -117,32 +89,9 @@ function AssignmentCard({
       {expanded && (
         <View style={[styles.expanded, { borderTopColor: colors.border }]}>
           <AppText size={13} bold muted style={styles.sectionLabel}>
-            STAGES
+            STAGES & ACTIVITY
           </AppText>
-          {stages.length === 0 ? (
-            <AppText size={13} muted>
-              No stage timestamps recorded.
-            </AppText>
-          ) : (
-            stages.map((stage, index) => (
-              <View key={stage.key} style={styles.stageRow}>
-                <View style={styles.stageRail}>
-                  <View style={[styles.stageDot, { backgroundColor: colors.accent }]} />
-                  {index < stages.length - 1 && (
-                    <View style={[styles.stageLine, { backgroundColor: colors.border }]} />
-                  )}
-                </View>
-                <View style={styles.stageContent}>
-                  <AppText size={14} bold>
-                    {stage.label}
-                  </AppText>
-                  <AppText size={12} muted style={{ marginTop: 2 }}>
-                    {stage.time}
-                  </AppText>
-                </View>
-              </View>
-            ))
-          )}
+          <ActivityTimeline activities={activities} />
 
           {item.status === 'CANCELLED' && item.cancelReason ? (
             <AppText size={13} color={colors.danger} style={{ marginTop: 8 }}>
@@ -187,7 +136,7 @@ function AssignmentCard({
                   <Ionicons name="document-text-outline" size={18} color={colors.primary} />
                   <View style={{ flex: 1 }}>
                     <AppText size={13} bold>
-                      {formatTime(r.createdAt)}
+                      {formatActivityTime(r.createdAt)}
                     </AppText>
                     {!!r.note && (
                       <AppText size={12} secondary style={{ marginTop: 2 }} numberOfLines={2}>
@@ -308,7 +257,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="History" subtitle="Recent assignments, stages & PCR" />
+      <AppHeader title="History" subtitle="Ended cases with stages, times & PCR" />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -324,12 +273,12 @@ export default function HistoryScreen() {
           <EmptyState
             icon={<Ionicons name="time-outline" size={40} color={colors.textMuted} />}
             title="No assignment history"
-            message="Completed and cancelled cases will appear here with their stage times and PCR reports."
+            message="When a case is completed or ended, it moves here with every stage timestamp and PCR reports."
           />
         ) : (
           <>
             <AppText size={12} bold muted style={styles.listLabel}>
-              RECENT ASSIGNMENTS{meta ? ` · ${meta.total}` : ''}
+              ENDED CASES{meta ? ` · ${meta.total}` : ''}
             </AppText>
             {history.map((item) => (
               <AssignmentCard
@@ -407,11 +356,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   sectionLabel: { letterSpacing: 0.8, marginBottom: 10 },
-  stageRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 44 },
-  stageRail: { width: 20, alignItems: 'center', marginRight: 10 },
-  stageDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  stageLine: { width: 2, flex: 1, minHeight: 20, marginTop: 2 },
-  stageContent: { flex: 1, paddingBottom: 12 },
   pcrEmpty: { gap: 10 },
   pcrBtn: {
     alignSelf: 'flex-start',

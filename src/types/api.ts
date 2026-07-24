@@ -143,6 +143,8 @@ export interface Task {
   patientPickAt?: string | null;
   facilityArrivalAt?: string | null;
   completedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
   incidentId: string;
   vehicleId: string;
   driverId: string;

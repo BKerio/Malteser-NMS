@@ -52,5 +52,5 @@ export function useActiveTask() {
     };
   }, [token, fetchTask]);
 
-  return { task, isLoading, isRefreshing, error, refresh: () => fetchTask(true) };
+  return { task, isLoading, isRefreshing, error, refresh: (silent = true) => fetchTask(silent) };
 }

@@ -17,7 +17,8 @@ const ROLE_LABELS = { DRIVER: 'Driver', EMT: 'EMT', NURSE: 'Nurse' } as const;
 const NAV_ITEMS = [
   { label: 'Crew', icon: 'people-outline', route: '/(main)/(tabs)/crew' as const },
   { label: 'Assignment', icon: 'medical-outline', route: '/(main)/(tabs)/' as const },
-  { label: 'History', icon: 'time-outline', route: '/(main)/(tabs)/history' as const },
+  { label: 'Activity', icon: 'pulse-outline', route: '/(main)/(tabs)/activity' as const },
+  { label: 'History', icon: 'checkmark-done-outline', route: '/(main)/(tabs)/history' as const },
   { label: 'Profile', icon: 'person-outline', route: '/(main)/(tabs)/profile' as const },
   { label: 'Settings', icon: 'settings-outline', route: '/(main)/(tabs)/settings' as const },
 ];

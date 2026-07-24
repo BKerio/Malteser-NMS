@@ -100,11 +100,11 @@ export default function PatientCareReportScreen() {
       Toast.show({
         type: 'success',
         text1: 'PCR uploaded',
-        text2: 'Patient care report saved successfully.',
+        text2: 'Case saved to History.',
         position: 'bottom',
         bottomOffset: 90,
       });
-      router.back();
+      router.replace('/(main)/(tabs)/history');
     } catch (err) {
       Toast.show({
         type: 'error',
@@ -124,14 +124,14 @@ export default function PatientCareReportScreen() {
         visible={confirmSkip}
         iconName="file-cancel-outline"
         title="Skip PCR upload?"
-        message="You can upload later from Activity history, but dispatch may require a report to close the case."
+        message="You can upload later from History, but dispatch may require a report to close the case."
         cancelLabel="Continue"
         confirmLabel="Skip"
         tone="danger"
         onCancel={() => setConfirmSkip(false)}
         onConfirm={() => {
           setConfirmSkip(false);
-          router.back();
+          router.replace('/(main)/(tabs)/history');
         }}
       />
 
