@@ -1,6 +1,6 @@
 # NCCG
 
-Mobile app for **Driveriis**, **EMTs**, and **Nurses** in the NCCG Emergency Operations Center system.
+Mobile app for **Drivers**, **EMTs**, and **Nurses** in the NCCG Emergency Operations Center system.
 
 ## Features
 
