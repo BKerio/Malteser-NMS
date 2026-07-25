@@ -2,7 +2,7 @@
 
 Mobile app for **Drivers**, **EMTs**, and **Nurses** in the NCCG Emergency Operations Center system.
 
-## Featuresii
+## Features
 
 - JWT login against the NMS backend (`POST /auth/login`)
 - View active crew assignment (`GET /tasks/active`)
