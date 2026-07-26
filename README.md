@@ -44,4 +44,3 @@ Create responder users via the admin portal or `backend/scripts/create-user.ts` 
 
 - Expo SDK 54 + React Native 0.81
 - Expo Router, Axios, Socket.io client, Expo Location
-ii
