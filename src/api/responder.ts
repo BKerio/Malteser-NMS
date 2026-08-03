@@ -1,5 +1,4 @@
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import client from './client';
 import type {
   ApiResponse,
@@ -80,8 +79,18 @@ export async function getPatientCareReports(taskId: string): Promise<PatientCare
   return res.data.data;
 }
 
-export async function postVehicleLocation(imei: string, lat: number, lng: number) {
-  const res = await client.post<ApiResponse<unknown>>('/fleet/location', { imei, lat, lng });
+export async function postVehicleLocation(
+  imei: string,
+  lat: number,
+  lng: number,
+  locationName?: string | null
+) {
+  const res = await client.post<ApiResponse<unknown>>('/fleet/location', {
+    imei,
+    lat,
+    lng,
+    ...(locationName ? { locationName } : {}),
+  });
   return res.data.data;
 }
 
@@ -96,8 +105,8 @@ export async function getMyCheckIn(): Promise<VehicleWithCrew | null> {
 }
 
 /**
- * Capture a selfie + GPS, then check in to a vehicle.
- * Backend requires multipart: lat, lng (before file), then file.
+ * Capture a selfie + GPS (+ place name), then check in to a vehicle.
+ * Backend requires multipart: lat, lng, optional locationName (before file), then file.
  */
 export async function checkInToVehicle(vehicleId: string): Promise<VehicleWithCrew> {
   const cam = await ImagePicker.requestCameraPermissionsAsync();
@@ -111,16 +120,21 @@ export async function checkInToVehicle(vehicleId: string): Promise<VehicleWithCr
   if (shot.canceled) throw new Error('Check-in selfie is required.');
   const photo = shot.assets[0];
 
-  const loc = await Location.requestForegroundPermissionsAsync();
-  if (!loc.granted) throw new Error('Location permission is required to check in.');
-  const pos = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
+  const { getCurrentCoords, reverseGeocodePlace } = await import('@/utils/location');
+  const coords = await getCurrentCoords();
+  // Prefer a real place name; backend will also reverse-geocode if this is null
+  let placeName: string | null = null;
+  try {
+    placeName = await reverseGeocodePlace(coords.lat, coords.lng);
+  } catch {
+    placeName = null;
+  }
 
   // Text fields must come before the file (server reads them from the same stream)
   const form = new FormData();
-  form.append('lat', String(pos.coords.latitude));
-  form.append('lng', String(pos.coords.longitude));
+  form.append('lat', String(coords.lat));
+  form.append('lng', String(coords.lng));
+  if (placeName) form.append('locationName', placeName);
   form.append('file', {
     uri: photo.uri,
     name: photo.fileName ?? `checkin-${Date.now()}.jpg`,
@@ -139,5 +153,44 @@ export async function checkOutFromVehicle(vehicleId: string): Promise<VehicleWit
   const res = await client.delete<ApiResponse<VehicleWithCrew>>(`/fleet/${vehicleId}/checkin`, {
     data: {},
   });
+  return res.data.data;
+}
+
+export interface AssignableCrewMember {
+  id: string;
+  name: string;
+  phone?: string | null;
+  role: 'EMT' | 'NURSE';
+}
+
+export async function getAssignableCrew(): Promise<AssignableCrewMember[]> {
+  const res = await client.get<ApiResponse<AssignableCrewMember[]>>('/fleet/crew-members');
+  return res.data.data;
+}
+
+export async function assignVehicleCrew(
+  vehicleId: string,
+  crew: { emtId?: string | null; nurseId?: string | null }
+): Promise<VehicleWithCrew> {
+  const res = await client.post<ApiResponse<VehicleWithCrew>>(`/fleet/${vehicleId}/crew`, crew);
+  return res.data.data;
+}
+
+export async function getAvailableHandoverVehicles(
+  excludeVehicleId?: string
+): Promise<VehicleWithCrew[]> {
+  const res = await client.get<ApiResponse<VehicleWithCrew[]>>('/fleet/available-for-handover', {
+    params: excludeVehicleId ? { excludeVehicleId } : undefined,
+  });
+  return res.data.data;
+}
+
+export async function handoverTask(
+  taskId: string,
+  data: { reason: string; newVehicleId?: string; autoAssign?: boolean }
+) {
+  const res = await client.post<
+    ApiResponse<{ cancelled: Task; newTask: Task | null; checkedOutVehicleId: string }>
+  >(`/tasks/${taskId}/reassign`, data);
   return res.data.data;
 }

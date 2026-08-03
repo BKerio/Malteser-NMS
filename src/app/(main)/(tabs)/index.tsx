@@ -16,11 +16,12 @@ import AppText from '@/components/shared/AppText';
 import EmptyState, { ErrorState } from '@/components/shared/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
 import EndCaseModal from '@/components/assignment/EndCaseModal';
+import HandoverModal from '@/components/assignment/HandoverModal';
 import { useAuth } from '@/context/AuthContext';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
-import { updateTaskStatus, closeIncident } from '@/api/responder';
+import { updateTaskStatus, closeIncident, handoverTask } from '@/api/responder';
 import { getErrorMessage } from '@/api/client';
 import { ACTION_LABELS, getNextStatus } from '@/utils/taskStatus';
 import type { MaternityVitals, PatientVitals, TaskStatus } from '@/types/api';
@@ -52,11 +53,13 @@ function VitalChip({ label, value, colors }: { label: string; value?: string; co
 export default function AssignmentScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { myVehicle } = useCrewCheckIn();
+  const { myVehicle, refresh: refreshCheckIn } = useCrewCheckIn();
   const { task, isLoading, isRefreshing, error, refresh } = useActiveTaskContext();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showEndCase, setShowEndCase] = useState(false);
   const [isEndingCase, setIsEndingCase] = useState(false);
+  const [showHandover, setShowHandover] = useState(false);
+  const [isHandingOver, setIsHandingOver] = useState(false);
 
   const openMaps = () => {
     if (!task?.incident?.lat || !task?.incident?.lng) {
@@ -153,6 +156,43 @@ export default function AssignmentScreen() {
       });
     } finally {
       setIsEndingCase(false);
+    }
+  };
+
+  const handleHandover = async (payload: {
+    reason: string;
+    autoAssign: boolean;
+    newVehicleId?: string;
+  }) => {
+    if (!task) return;
+    setIsHandingOver(true);
+    try {
+      const result = await handoverTask(task.id, {
+        reason: payload.reason,
+        autoAssign: payload.autoAssign,
+        newVehicleId: payload.newVehicleId,
+      });
+      setShowHandover(false);
+      await Promise.all([refresh(), refreshCheckIn()]);
+      Toast.show({
+        type: 'success',
+        text1: 'Handover complete',
+        text2: result.newTask
+          ? 'Replacement crew assigned. You have been checked out.'
+          : 'Case returned to dispatch. You have been checked out.',
+        position: 'bottom',
+        bottomOffset: 90,
+      });
+    } catch (err) {
+      Toast.show({
+        type: 'error',
+        text1: 'Handover failed',
+        text2: getErrorMessage(err),
+        position: 'bottom',
+        bottomOffset: 90,
+      });
+    } finally {
+      setIsHandingOver(false);
     }
   };
 
@@ -385,7 +425,7 @@ export default function AssignmentScreen() {
               <TouchableOpacity
                 style={[styles.endCaseBtn, { borderColor: colors.danger, backgroundColor: colors.dangerBg }]}
                 onPress={() => setShowEndCase(true)}
-                disabled={isEndingCase}
+                disabled={isEndingCase || isHandingOver}
               >
                 <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
                 <AppText size={15} bold color={colors.danger}>
@@ -395,6 +435,19 @@ export default function AssignmentScreen() {
             )}
 
             {user?.role === 'DRIVER' && (
+              <TouchableOpacity
+                style={[styles.secondaryBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => setShowHandover(true)}
+                disabled={isHandingOver || isEndingCase}
+              >
+                <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
+                <AppText size={15} bold>
+                  Handover / release case
+                </AppText>
+              </TouchableOpacity>
+            )}
+
+            {user?.role === 'DRIVER' && (task || myVehicle) && (
               <View style={[styles.gpsBanner, { backgroundColor: colors.successBg }]}>
                 <Ionicons name="navigate-circle" size={18} color={colors.success} />
                 <AppText size={13} color={colors.success}>
@@ -413,6 +466,17 @@ export default function AssignmentScreen() {
           isSubmitting={isEndingCase}
           onClose={() => setShowEndCase(false)}
           onConfirm={handleEndCase}
+        />
+      )}
+
+      {task && (
+        <HandoverModal
+          visible={showHandover}
+          caseNumber={task.incident.caseNumber}
+          currentVehicleId={task.vehicleId}
+          isSubmitting={isHandingOver}
+          onClose={() => setShowHandover(false)}
+          onConfirm={handleHandover}
         />
       )}
     </View>

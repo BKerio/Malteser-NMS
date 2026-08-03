@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { VehicleWithCrew } from '@/types/api';
 import {
+  assignVehicleCrew,
   checkInToVehicle,
   checkOutFromVehicle,
   getAgencyVehicles,
@@ -19,6 +20,7 @@ interface CrewCheckInContextValue {
   refresh: () => Promise<void>;
   checkIn: (vehicleId: string) => Promise<void>;
   checkOut: () => Promise<void>;
+  assignCrew: (crew: { emtId?: string | null; nurseId?: string | null }) => Promise<VehicleWithCrew>;
 }
 
 const CrewCheckInContext = createContext<CrewCheckInContextValue | undefined>(undefined);
@@ -59,24 +61,21 @@ export function CrewCheckInProvider({ children }: { children: React.ReactNode })
     }
   }, [user, refresh]);
 
-  const checkIn = useCallback(
-    async (vehicleId: string) => {
-      setIsMutating(true);
-      setError(null);
-      try {
-        const vehicle = await checkInToVehicle(vehicleId);
-        setMyVehicle(vehicle);
-        setVehicles((prev) => prev.map((v) => (v.id === vehicle.id ? vehicle : v)));
-      } catch (err) {
-        const message = getErrorMessage(err);
-        setError(message);
-        throw new Error(message);
-      } finally {
-        setIsMutating(false);
-      }
-    },
-    []
-  );
+  const checkIn = useCallback(async (vehicleId: string) => {
+    setIsMutating(true);
+    setError(null);
+    try {
+      const vehicle = await checkInToVehicle(vehicleId);
+      setMyVehicle(vehicle);
+      setVehicles((prev) => prev.map((v) => (v.id === vehicle.id ? vehicle : v)));
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
 
   const checkOut = useCallback(async () => {
     if (!myVehicle) return;
@@ -95,6 +94,27 @@ export function CrewCheckInProvider({ children }: { children: React.ReactNode })
     }
   }, [myVehicle]);
 
+  const assignCrew = useCallback(
+    async (crew: { emtId?: string | null; nurseId?: string | null }) => {
+      if (!myVehicle) throw new Error('Check in to a vehicle before assigning crew.');
+      setIsMutating(true);
+      setError(null);
+      try {
+        const vehicle = await assignVehicleCrew(myVehicle.id, crew);
+        setMyVehicle(vehicle);
+        setVehicles((prev) => prev.map((v) => (v.id === vehicle.id ? vehicle : v)));
+        return vehicle;
+      } catch (err) {
+        const message = getErrorMessage(err);
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsMutating(false);
+      }
+    },
+    [myVehicle]
+  );
+
   return (
     <CrewCheckInContext.Provider
       value={{
@@ -107,6 +127,7 @@ export function CrewCheckInProvider({ children }: { children: React.ReactNode })
         refresh,
         checkIn,
         checkOut,
+        assignCrew,
       }}
     >
       {children}

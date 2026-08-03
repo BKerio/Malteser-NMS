@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { useActiveTask } from '@/hooks/useActiveTask';
 import { useLocationSync } from '@/hooks/useLocationSync';
 import { useAuth } from '@/context/AuthContext';
+import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import type { Task } from '@/types/api';
 
 interface ActiveTaskContextValue {
@@ -14,12 +15,19 @@ interface ActiveTaskContextValue {
 
 const ActiveTaskContext = createContext<ActiveTaskContextValue | undefined>(undefined);
 
-export function ActiveTaskProvider({ children }: { children: React.ReactNode }) {
+function ActiveTaskInner({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { myVehicle } = useCrewCheckIn();
   const value = useActiveTask();
-  useLocationSync(value.task, user);
+  useLocationSync(value.task, user, myVehicle);
 
   return <ActiveTaskContext.Provider value={value}>{children}</ActiveTaskContext.Provider>;
+}
+
+export function ActiveTaskProvider({ children }: { children: React.ReactNode }) {
+  // CrewCheckInProvider wraps this in the layout so myVehicle is available.
+  // Keep a fallback provider tree if layout order changes.
+  return <ActiveTaskInner>{children}</ActiveTaskInner>;
 }
 
 export function useActiveTaskContext() {

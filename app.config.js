@@ -6,10 +6,15 @@ const googleMapsKey =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY ||
   appJson.expo?.extra?.googleMapsKey ||
   '';
-const apiUrl =
+const apiUrlRaw =
   process.env.EXPO_PUBLIC_API_URL ||
   appJson.expo?.extra?.apiUrl ||
   'http://156.67.25.84:8080';
+const apiUrls = String(apiUrlRaw)
+  .split(/[,|\s]+/)
+  .map((u) => u.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+const apiUrl = apiUrls[0];
 const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL || apiUrl;
 
 const existingSchemes = appJson.expo?.ios?.infoPlist?.LSApplicationQueriesSchemes || [];
@@ -50,6 +55,7 @@ module.exports = {
     extra: {
       ...(appJson.expo.extra || {}),
       apiUrl,
+      apiUrls,
       socketUrl,
       googleMapsKey,
       eas: {

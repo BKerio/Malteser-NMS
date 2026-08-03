@@ -28,6 +28,25 @@ function slotLabel(role: Role) {
   return 'Nurse';
 }
 
+function formatCheckInTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return `today ${time}`;
+  return d.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function VehicleRow({
   vehicle,
   userRole,
@@ -62,6 +81,14 @@ function VehicleRow({
               ? `${slotLabel(userRole)}: ${occupant.name}`
               : `${slotLabel(userRole)} slot open`}
         </AppText>
+        {(vehicle.lastLocationName || (vehicle.lastLat != null && vehicle.lastLng != null)) && (
+          <AppText size={11} secondary style={{ marginTop: 2 }}>
+            {vehicle.lastLocationName &&
+            !/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(vehicle.lastLocationName.trim())
+              ? vehicle.lastLocationName
+              : 'Place name pending…'}
+          </AppText>
+        )}
       </View>
       {isCheckedIn ? (
         isMine ? (
@@ -116,7 +143,7 @@ export default function ShiftCheckInCard() {
       Toast.show({
         type: 'success',
         text1: 'Checked in',
-        text2: 'You are on shift for this vehicle.',
+        text2: 'Location and time captured. You are on shift.',
         position: 'bottom',
         bottomOffset: 90,
       });
@@ -168,7 +195,8 @@ export default function ShiftCheckInCard() {
             Shift check-in
           </AppText>
           <AppText size={13} secondary style={{ marginTop: 2 }}>
-            Check in with a selfie and location before dispatch can assign cases.
+            Check in with a selfie and GPS location before dispatch can assign cases. Location
+            permission is required.
           </AppText>
         </View>
       </View>
@@ -179,7 +207,7 @@ export default function ShiftCheckInCard() {
         title="Check in to vehicle?"
         message={
           confirmCheckInFor
-            ? `You will take a selfie, then check in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}.`
+            ? `Location will be enabled and auto-captured. You will take a selfie, then check in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}.`
             : 'Continue?'
         }
         cancelLabel="Not yet"
@@ -221,31 +249,52 @@ export default function ShiftCheckInCard() {
           </TouchableOpacity>
         </View>
       ) : myVehicle ? (
-        <View style={[styles.activeShift, { backgroundColor: colors.noteBg }]}>
-          <View style={styles.activeShiftInfo}>
-            <AppText size={12} bold muted style={{ textTransform: 'uppercase' }}>
-              On shift
-            </AppText>
-            <AppText size={20} bold style={{ marginTop: 4 }}>
-              {myVehicle.registrationNumber}
-            </AppText>
-            <AppText size={13} secondary style={{ marginTop: 4 }}>
-              {roleLabel} · IMEI {myVehicle.imei}
-            </AppText>
-          </View>
-          <TouchableOpacity
-            style={[styles.checkOutBtn, { borderColor: colors.danger }]}
-            onPress={() => setConfirmEndShift(true)}
-            disabled={isEndingShift}
-          >
-            {isEndingShift ? (
-              <ActivityIndicator size="small" color={colors.danger} />
-            ) : (
-              <AppText size={14} bold color={colors.danger}>
-                End shift
+        <View style={[styles.activeShiftCol, { backgroundColor: colors.noteBg }]}>
+          <View style={styles.activeShift}>
+            <View style={styles.activeShiftInfo}>
+              <AppText size={12} bold muted style={{ textTransform: 'uppercase' }}>
+                On shift
               </AppText>
-            )}
-          </TouchableOpacity>
+              <AppText size={20} bold style={{ marginTop: 4 }}>
+                {myVehicle.registrationNumber}
+              </AppText>
+              <AppText size={13} secondary style={{ marginTop: 4 }}>
+                {roleLabel} · IMEI {myVehicle.imei}
+              </AppText>
+            </View>
+            <TouchableOpacity
+              style={[styles.checkOutBtn, { borderColor: colors.danger }]}
+              onPress={() => setConfirmEndShift(true)}
+              disabled={isEndingShift}
+            >
+              {isEndingShift ? (
+                <ActivityIndicator size="small" color={colors.danger} />
+              ) : (
+                <AppText size={14} bold color={colors.danger}>
+                  End shift
+                </AppText>
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.placeRow, { borderTopColor: colors.border }]}>
+            <Ionicons name="location" size={16} color={colors.accent} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <AppText size={14}>
+                {(() => {
+                  const name = myVehicle.checkInLocationName || myVehicle.lastLocationName;
+                  if (name && !/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(name.trim())) {
+                    return `Logged in at ${name}`;
+                  }
+                  return 'Logged in — resolving place name…';
+                })()}
+              </AppText>
+              {myVehicle.checkedInAt ? (
+                <AppText size={12} muted>
+                  Since {formatCheckInTime(myVehicle.checkedInAt)}
+                </AppText>
+              ) : null}
+            </View>
+          </View>
         </View>
       ) : (
         <>
@@ -312,14 +361,24 @@ const styles = StyleSheet.create({
   },
   headerText: { flex: 1 },
   errorBox: { gap: 8, paddingVertical: 8 },
-  activeShift: {
+  activeShiftCol: {
     borderRadius: 14,
     padding: 16,
+    gap: 12,
+  },
+  activeShift: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   activeShiftInfo: { flex: 1 },
+  placeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
   checkOutBtn: {
     borderWidth: 1.5,
     borderRadius: 12,

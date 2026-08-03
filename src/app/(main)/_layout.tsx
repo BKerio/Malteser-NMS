@@ -8,8 +8,8 @@ export default function MainLayout() {
   const { colors } = useTheme();
 
   return (
-    <ActiveTaskProvider>
-      <CrewCheckInProvider>
+    <CrewCheckInProvider>
+      <ActiveTaskProvider>
         <Drawer
           drawerContent={(props) => <DrawerContent {...props} />}
           screenOptions={{
@@ -42,8 +42,15 @@ export default function MainLayout() {
               swipeEnabled: false,
             }}
           />
+          <Drawer.Screen
+            name="pcr-viewer"
+            options={{
+              drawerItemStyle: { display: 'none' },
+              swipeEnabled: false,
+            }}
+          />
         </Drawer>
-      </CrewCheckInProvider>
-    </ActiveTaskProvider>
+      </ActiveTaskProvider>
+    </CrewCheckInProvider>
   );
 }

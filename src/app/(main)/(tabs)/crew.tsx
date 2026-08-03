@@ -6,6 +6,8 @@ import AppHeader from '@/components/navigation/AppHeader';
 import AppText from '@/components/shared/AppText';
 import EmptyState from '@/components/shared/EmptyState';
 import ShiftCheckInCard from '@/components/crew/ShiftCheckInCard';
+import CrewAssignmentCard from '@/components/crew/CrewAssignmentCard';
+import AvailableAmbulancesCard from '@/components/crew/AvailableAmbulancesCard';
 import StatusBadge from '@/components/StatusBadge';
 import { useActiveTaskContext } from '@/context/ActiveTaskContext';
 import { useCrewCheckIn } from '@/context/CrewCheckInContext';
@@ -123,10 +125,12 @@ export default function CrewScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Crew" subtitle="Shift check-in & team" />
+      <AppHeader title="Crew" subtitle="Check-in, locations & team" />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <ShiftCheckInCard />
+        <CrewAssignmentCard />
+        <AvailableAmbulancesCard />
 
         {!task ? (
           myVehicle ? (

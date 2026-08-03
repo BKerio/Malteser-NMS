@@ -33,6 +33,15 @@ export interface CrewMemberRef {
 
 export interface VehicleWithCrew extends Vehicle {
   status?: string;
+  isActive?: boolean;
+  lastLat?: number | null;
+  lastLng?: number | null;
+  lastLocationAt?: string | null;
+  lastLocationName?: string | null;
+  checkInLocationName?: string | null;
+  checkInLat?: number | null;
+  checkInLng?: number | null;
+  checkedInAt?: string | null;
   currentDriver?: CrewMemberRef | null;
   currentEmt?: CrewMemberRef | null;
   currentNurse?: CrewMemberRef | null;
