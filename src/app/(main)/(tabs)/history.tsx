@@ -99,6 +99,12 @@ function AssignmentCard({
             </AppText>
           ) : null}
 
+          {item.status === 'HANDED_OVER' && item.handoverReason ? (
+            <AppText size={13} color={colors.primary} style={{ marginTop: 8 }}>
+              Transferred: {item.handoverReason}
+            </AppText>
+          ) : null}
+
           <AppText size={13} bold muted style={[styles.sectionLabel, { marginTop: 16 }]}>
             PCR REPORTS
           </AppText>

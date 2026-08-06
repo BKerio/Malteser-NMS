@@ -12,6 +12,7 @@ const COLORS: Record<TaskStatus, { bg: string; text: string }> = {
   AT_HOSPITAL: { bg: '#E8EFFD', text: '#2563EB' },
   COMPLETED: { bg: '#E8F3ED', text: '#005A32' },
   CANCELLED: { bg: '#FBEAEA', text: '#D62828' },
+  HANDED_OVER: { bg: '#EEF2FF', text: '#3730A3' },
 };
 
 export default function StatusBadge({ status }: { status: TaskStatus }) {

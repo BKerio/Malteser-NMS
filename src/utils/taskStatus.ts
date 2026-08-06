@@ -9,6 +9,7 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   AT_HOSPITAL: 'At Hospital',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
+  HANDED_OVER: 'Transferred',
 };
 
 export const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {

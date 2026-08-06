@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AppText from '@/components/shared/AppText';
 import { useCrewCheckIn } from '@/context/CrewCheckInContext';
 import { useTheme } from '@/context/ThemeContext';
-import type { VehicleWithCrew } from '@/types/api';
+import type { PartnerAmbulance, VehicleWithCrew } from '@/types/api';
 
 function statusLabel(v: VehicleWithCrew) {
   if (v.isActive === false) return 'Offline';
@@ -42,9 +42,61 @@ function formatShortTime(iso: string): string {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
+function SectionHeading({ title, count }: { title: string; count: number }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.sectionHead}>
+      <AppText size={12} bold muted style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
+        {title}
+      </AppText>
+      <AppText size={12} muted>
+        {count}
+      </AppText>
+    </View>
+  );
+}
+
+function PartnerRow({ p }: { p: PartnerAmbulance }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.row, { borderColor: colors.border, backgroundColor: colors.background }]}>
+      <View style={[styles.dot, { backgroundColor: colors.textMuted }]} />
+      <View style={{ flex: 1 }}>
+        <AppText size={15} bold>
+          {p.registrationNumber}
+        </AppText>
+        <AppText size={12} muted style={{ marginTop: 2 }}>
+          No GPS · {p.agency?.name ?? 'County / EOC'}
+          {p.vehicleType ? ` · ${p.vehicleType}` : ''}
+        </AppText>
+        {(p.baseLocation || p.notes) && (
+          <View style={styles.placeLine}>
+            <Ionicons name="location-outline" size={13} color={colors.accent} />
+            <AppText size={12} secondary style={{ flex: 1 }}>
+              {p.baseLocation || p.notes}
+            </AppText>
+          </View>
+        )}
+        {p.contactPhone ? (
+          <TouchableOpacity
+            style={styles.placeLine}
+            onPress={() => Linking.openURL(`tel:${p.contactPhone}`)}
+          >
+            <Ionicons name="call-outline" size={13} color={colors.primary} />
+            <AppText size={12} color={colors.primary}>
+              {p.contactName ? `${p.contactName} · ` : ''}
+              {p.contactPhone}
+            </AppText>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export default function AvailableAmbulancesCard() {
   const { colors } = useTheme();
-  const { vehicles, myVehicle, isLoading } = useCrewCheckIn();
+  const { vehicles, partnerAmbulances, myVehicle, isLoading } = useCrewCheckIn();
 
   const withCoords = useMemo(
     () => vehicles.filter((v) => v.lastLat != null && v.lastLng != null),
@@ -65,7 +117,6 @@ export default function AvailableAmbulancesCard() {
         ? myVehicle
         : withCoords[0];
     if (!focus?.lastLat || !focus?.lastLng) {
-      // Nairobi CBD default
       return { latitude: -1.2921, longitude: 36.8219, latitudeDelta: 0.12, longitudeDelta: 0.12 };
     }
     return {
@@ -87,7 +138,7 @@ export default function AvailableAmbulancesCard() {
             Ambulances & locations
           </AppText>
           <AppText size={13} secondary style={{ marginTop: 2 }}>
-            {available.length} available · {withCoords.length} with live GPS
+            {available.length} tracked ready · {partnerAmbulances.length} no tracker
           </AppText>
         </View>
       </View>
@@ -120,49 +171,61 @@ export default function AvailableAmbulancesCard() {
         <AppText size={13} muted>
           Loading fleet…
         </AppText>
-      ) : vehicles.length === 0 ? (
-        <AppText size={13} muted>
-          No ambulances found for your agency.
-        </AppText>
       ) : (
         <View style={styles.list}>
-          {vehicles.map((v) => {
-            const color = statusColor(v, colors);
-            const isMine = myVehicle?.id === v.id;
-            return (
-              <View
-                key={v.id}
-                style={[
-                  styles.row,
-                  {
-                    borderColor: isMine ? colors.primary : colors.border,
-                    backgroundColor: isMine ? colors.noteBg : colors.background,
-                  },
-                ]}
-              >
-                <View style={[styles.dot, { backgroundColor: color }]} />
-                <View style={{ flex: 1 }}>
-                  <AppText size={15} bold>
-                    {v.registrationNumber}
-                    {isMine ? ' · You' : ''}
-                  </AppText>
-                  <AppText size={12} muted style={{ marginTop: 2 }}>
-                    {statusLabel(v)}
-                    {v.currentDriver ? ` · ${v.currentDriver.name}` : ''}
-                  </AppText>
-                  <View style={styles.placeLine}>
-                    <Ionicons name="location-outline" size={13} color={colors.accent} />
-                    <AppText size={12} secondary style={{ flex: 1 }}>
-                      {placeLabel(v)}
-                      {v.checkedInAt && v.currentDriver
-                        ? ` · since ${formatShortTime(v.checkedInAt)}`
-                        : ''}
+          <SectionHeading title="With Tracker" count={vehicles.length} />
+          {vehicles.length === 0 ? (
+            <AppText size={13} muted style={{ marginBottom: 8 }}>
+              No GPS-tracked ambulances found for your agency.
+            </AppText>
+          ) : (
+            vehicles.map((v) => {
+              const color = statusColor(v, colors);
+              const isMine = myVehicle?.id === v.id;
+              return (
+                <View
+                  key={v.id}
+                  style={[
+                    styles.row,
+                    {
+                      borderColor: isMine ? colors.primary : colors.border,
+                      backgroundColor: isMine ? colors.noteBg : colors.background,
+                    },
+                  ]}
+                >
+                  <View style={[styles.dot, { backgroundColor: color }]} />
+                  <View style={{ flex: 1 }}>
+                    <AppText size={15} bold>
+                      {v.registrationNumber}
+                      {isMine ? ' · You' : ''}
                     </AppText>
+                    <AppText size={12} muted style={{ marginTop: 2 }}>
+                      {statusLabel(v)}
+                      {v.currentDriver ? ` · ${v.currentDriver.name}` : ''}
+                    </AppText>
+                    <View style={styles.placeLine}>
+                      <Ionicons name="location-outline" size={13} color={colors.accent} />
+                      <AppText size={12} secondary style={{ flex: 1 }}>
+                        {placeLabel(v)}
+                        {v.checkedInAt && v.currentDriver
+                          ? ` · since ${formatShortTime(v.checkedInAt)}`
+                          : ''}
+                      </AppText>
+                    </View>
                   </View>
                 </View>
-              </View>
-            );
-          })}
+              );
+            })
+          )}
+
+          <SectionHeading title="No Tracker · Reference only" count={partnerAmbulances.length} />
+          {partnerAmbulances.length === 0 ? (
+            <AppText size={13} muted>
+              No no-tracker ambulances on the roster.
+            </AppText>
+          ) : (
+            partnerAmbulances.map((p) => <PartnerRow key={p.id} p={p} />)
+          )}
         </View>
       )}
     </View>
@@ -197,6 +260,13 @@ const styles = StyleSheet.create({
   },
   map: { flex: 1 },
   list: { gap: 8 },
+  sectionHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 2,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',

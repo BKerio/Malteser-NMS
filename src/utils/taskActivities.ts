@@ -20,6 +20,7 @@ type TimestampSource = {
   facilityArrivalAt?: string | null;
   completedAt?: string | null;
   cancelledAt?: string | null;
+  handedOverAt?: string | null;
 };
 
 const STAGE_DEFS: Array<{
@@ -67,7 +68,7 @@ export function formatActivityTimeFull(iso?: string | null): string | null {
 }
 
 function currentIndex(status: TaskStatus): number {
-  if (status === 'CANCELLED') return -1;
+  if (status === 'CANCELLED' || status === 'HANDED_OVER') return -1;
   return STATUS_ORDER.indexOf(status);
 }
 
@@ -82,6 +83,7 @@ export function buildTaskActivities(
   const live = opts?.live ?? false;
   const curIdx = currentIndex(source.status);
   const cancelled = source.status === 'CANCELLED';
+  const handedOver = source.status === 'HANDED_OVER';
 
   const stages: TaskActivity[] = STAGE_DEFS.map((def) => {
     const idx = STATUS_ORDER.indexOf(def.status);
@@ -91,7 +93,7 @@ export function buildTaskActivities(
       def.status === 'EN_ROUTE' && curIdx < STATUS_ORDER.indexOf('EN_ROUTE') ? null : raw;
 
     let state: ActivityState;
-    if (cancelled) {
+    if (cancelled || handedOver) {
       state = timestamp ? 'done' : 'skipped';
     } else if (curIdx > idx || (curIdx === idx && def.status !== 'PENDING' && timestamp)) {
       state = curIdx === idx ? 'active' : 'done';
@@ -127,15 +129,31 @@ export function buildTaskActivities(
     });
   }
 
-  if (live) {
-    return stages.filter((s) => s.status !== 'CANCELLED' || cancelled);
+  if (handedOver) {
+    stages.push({
+      key: 'HANDED_OVER',
+      status: 'HANDED_OVER',
+      label: STATUS_LABELS.HANDED_OVER,
+      timestamp: source.handedOverAt ?? null,
+      state: 'done',
+    });
   }
 
-  // History: show assigned + any timed stages (+ cancel)
+  if (live) {
+    return stages.filter(
+      (s) =>
+        (s.status !== 'CANCELLED' && s.status !== 'HANDED_OVER') ||
+        cancelled ||
+        handedOver
+    );
+  }
+
+  // History: show assigned + any timed stages (+ cancel / transfer)
   return stages.filter(
     (s) =>
       s.status === 'PENDING' ||
       s.status === 'CANCELLED' ||
+      s.status === 'HANDED_OVER' ||
       Boolean(s.timestamp) ||
       s.state === 'done' ||
       s.state === 'active'

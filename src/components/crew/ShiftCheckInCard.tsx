@@ -121,7 +121,7 @@ function VehicleRow({
 export default function ShiftCheckInCard() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { myVehicle, vehicles, isLoading, isRefreshing, error, refresh, checkIn, checkOut } = useCrewCheckIn();
+  const { myVehicle, vehicles, isLoading, isRefreshing, error, refresh, checkIn, checkOut, pendingCheckIn, dismissPendingCheckIn, isMutating } = useCrewCheckIn();
   const [showPicker, setShowPicker] = useState(false);
   const [confirmCheckInFor, setConfirmCheckInFor] = useState<VehicleWithCrew | null>(null);
   const [confirmEndShift, setConfirmEndShift] = useState(false);
@@ -135,10 +135,10 @@ export default function ShiftCheckInCard() {
 
   if (!user) return null;
 
-  const handleCheckIn = async (vehicleId: string) => {
+  const handleCheckIn = async (vehicleId: string, registrationNumber?: string) => {
     setPendingVehicleId(vehicleId);
     try {
-      await checkIn(vehicleId);
+      await checkIn(vehicleId, { registrationNumber });
       setShowPicker(false);
       Toast.show({
         type: 'success',
@@ -150,7 +150,7 @@ export default function ShiftCheckInCard() {
     } catch (err) {
       Toast.show({
         type: 'error',
-        text1: 'Check-in failed',
+        text1: 'Check-in paused',
         text2: err instanceof Error ? err.message : 'Please try again.',
         position: 'bottom',
         bottomOffset: 90,
@@ -158,6 +158,11 @@ export default function ShiftCheckInCard() {
     } finally {
       setPendingVehicleId(null);
     }
+  };
+
+  const handleFinishPending = async () => {
+    if (!pendingCheckIn) return;
+    await handleCheckIn(pendingCheckIn.vehicleId, pendingCheckIn.registrationNumber);
   };
 
   const handleCheckOut = async () => {
@@ -207,16 +212,16 @@ export default function ShiftCheckInCard() {
         title="Check in to vehicle?"
         message={
           confirmCheckInFor
-            ? `Location will be enabled and auto-captured. You will take a selfie, then check in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}.`
+            ? `Location is captured first, then you take a selfie to check in as ${roleLabel} on ${confirmCheckInFor.registrationNumber}. If the camera reloads the app, just tap finish — your progress is saved.`
             : 'Continue?'
         }
         cancelLabel="Not yet"
-        confirmLabel="Take selfie & check in"
+        confirmLabel="Continue check-in"
         onCancel={() => setConfirmCheckInFor(null)}
         onConfirm={() => {
           const v = confirmCheckInFor;
           setConfirmCheckInFor(null);
-          if (v) handleCheckIn(v.id);
+          if (v) handleCheckIn(v.id, v.registrationNumber);
         }}
       />
 
@@ -234,6 +239,39 @@ export default function ShiftCheckInCard() {
           handleCheckOut();
         }}
       />
+
+      {!myVehicle && pendingCheckIn ? (
+        <View style={[styles.pendingBox, { backgroundColor: colors.noteBg, borderColor: colors.border }]}>
+          <AppText size={14} bold>
+            Finish check-in
+          </AppText>
+          <AppText size={13} secondary style={{ marginTop: 4 }}>
+            {pendingCheckIn.selfieUri
+              ? `Uploading your selfie for ${pendingCheckIn.registrationNumber ?? 'your ambulance'}…`
+              : `Your location is saved. Tap below to take the selfie again for ${pendingCheckIn.registrationNumber ?? 'your ambulance'} — the camera may briefly reopen the app.`}
+          </AppText>
+          <View style={styles.pendingActions}>
+            <TouchableOpacity
+              style={[styles.pendingBtn, { backgroundColor: colors.primary }]}
+              onPress={handleFinishPending}
+              disabled={isMutating || pendingVehicleId != null}
+            >
+              {isMutating || pendingVehicleId === pendingCheckIn.vehicleId ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <AppText size={13} bold color={colors.onPrimary}>
+                  {pendingCheckIn.selfieUri ? 'Complete check-in' : 'Take selfie & finish'}
+                </AppText>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => dismissPendingCheckIn()} disabled={isMutating}>
+              <AppText size={13} muted>
+                Cancel
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
@@ -316,9 +354,12 @@ export default function ShiftCheckInCard() {
                 <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={colors.primary} />
               }
             >
+              <AppText size={12} bold muted style={{ marginBottom: 8, textTransform: 'uppercase' }}>
+                With Tracker — check-in
+              </AppText>
               {vehicles.length === 0 ? (
                 <AppText size={14} muted style={{ paddingVertical: 12 }}>
-                  No active vehicles found for your agency.
+                  No active GPS vehicles found for your agency.
                 </AppText>
               ) : (
                 vehicles.map((vehicle) => (
@@ -411,6 +452,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     minWidth: 84,
+    alignItems: 'center',
+  },
+  pendingBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    gap: 4,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 10,
+  },
+  pendingBtn: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 140,
     alignItems: 'center',
   },
   badge: {

@@ -9,7 +9,7 @@ import { useTheme } from '@/context/ThemeContext';
 function stepDone(task: Task, status: TaskStatus): boolean {
   const idx = STATUS_ORDER.indexOf(status);
   const currentIdx = STATUS_ORDER.indexOf(task.status);
-  if (task.status === 'CANCELLED') return false;
+  if (task.status === 'CANCELLED' || task.status === 'HANDED_OVER') return false;
   return currentIdx > idx || (currentIdx === idx && status !== 'PENDING');
 }
 

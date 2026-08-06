@@ -27,10 +27,19 @@ export const HANDOVER_REASON_PRESETS = [
   'Other — see notes',
 ] as const;
 
+function formatDistance(km?: number | null) {
+  if (km == null || !Number.isFinite(km)) return 'Distance unknown';
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(1)} km away`;
+}
+
 interface HandoverModalProps {
   visible: boolean;
   caseNumber: string;
   currentVehicleId: string;
+  /** Releasing unit or scene coords — used to rank nearby free ambulances. */
+  referenceLat?: number | null;
+  referenceLng?: number | null;
   isSubmitting?: boolean;
   onClose: () => void;
   onConfirm: (payload: {
@@ -44,6 +53,8 @@ export default function HandoverModal({
   visible,
   caseNumber,
   currentVehicleId,
+  referenceLat,
+  referenceLng,
   isSubmitting = false,
   onClose,
   onConfirm,
@@ -64,7 +75,11 @@ export default function HandoverModal({
       setLoadingVehicles(true);
       setLoadError(null);
       try {
-        const list = await getAvailableHandoverVehicles(currentVehicleId);
+        const list = await getAvailableHandoverVehicles({
+          excludeVehicleId: currentVehicleId,
+          lat: referenceLat,
+          lng: referenceLng,
+        });
         if (!cancelled) setVehicles(list);
       } catch (err) {
         if (!cancelled) setLoadError(getErrorMessage(err));
@@ -75,7 +90,7 @@ export default function HandoverModal({
     return () => {
       cancelled = true;
     };
-  }, [visible, currentVehicleId]);
+  }, [visible, currentVehicleId, referenceLat, referenceLng]);
 
   const reset = () => {
     setSelected('');
@@ -96,16 +111,21 @@ export default function HandoverModal({
       ? `${selected} — ${extraNote.trim()}`
       : selected
     : '';
-  const canSubmit = selected.length > 0 && reasonText.length >= 5 && !isSubmitting;
+
+  const hasReceiver = autoAssign ? vehicles.length > 0 : Boolean(pickedVehicleId);
+  const canSubmit =
+    selected.length > 0 && reasonText.length >= 5 && !isSubmitting && hasReceiver;
 
   const handleConfirm = () => {
     if (!canSubmit) return;
     onConfirm({
       reason: reasonText,
-      autoAssign: autoAssign,
+      autoAssign,
       newVehicleId: !autoAssign ? pickedVehicleId : undefined,
     });
   };
+
+  const nearest = vehicles[0];
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -117,7 +137,7 @@ export default function HandoverModal({
           <View style={[styles.header, { backgroundColor: colors.brandNavy }]}>
             <View style={{ flex: 1 }}>
               <AppText size={12} bold color={colors.onPrimary} style={{ opacity: 0.85 }}>
-                HANDOVER / TERMINATE
+                TRANSFER CASE
               </AppText>
               <AppText size={18} bold color={colors.onPrimary} style={{ marginTop: 2 }}>
                 {caseNumber}
@@ -132,13 +152,14 @@ export default function HandoverModal({
             <View style={[styles.warning, { backgroundColor: colors.noteBg, borderColor: colors.border }]}>
               <Ionicons name="swap-horizontal" size={18} color={colors.primary} />
               <AppText size={13} secondary style={styles.warningText}>
-                Requires a valid reason. You will be checked out of this vehicle. Optionally assign
-                another available driver to continue the case.
+                Pass this live case to a nearby free ambulance that already has a driver. The case
+                stays open — it is not cancelled — and dispatch plus the receiving crew are notified
+                for the log.
               </AppText>
             </View>
 
             <AppText size={12} bold muted style={styles.sectionLabel}>
-              REASON
+              WHY ARE YOU TRANSFERRING?
             </AppText>
             <View style={styles.presetList}>
               {HANDOVER_REASON_PRESETS.map((preset) => {
@@ -165,7 +186,7 @@ export default function HandoverModal({
             </View>
 
             <AppText size={14} bold style={{ marginTop: 16, marginBottom: 8 }}>
-              Additional notes
+              Extra notes for dispatch
             </AppText>
             <TextInput
               style={[
@@ -176,7 +197,7 @@ export default function HandoverModal({
                   color: colors.text,
                 },
               ]}
-              placeholder="Detail for dispatch…"
+              placeholder="Anything the next crew should know…"
               placeholderTextColor={colors.textMuted}
               value={extraNote}
               onChangeText={setExtraNote}
@@ -189,10 +210,14 @@ export default function HandoverModal({
             <View style={[styles.switchRow, { borderColor: colors.border }]}>
               <View style={{ flex: 1 }}>
                 <AppText size={14} bold>
-                  Auto-assign available driver
+                  Send to nearest free unit
                 </AppText>
                 <AppText size={12} muted style={{ marginTop: 2 }}>
-                  Pick the nearest READY unit with a checked-in driver
+                  {loadingVehicles
+                    ? 'Looking for nearby ambulances…'
+                    : nearest
+                      ? `Suggested: ${nearest.registrationNumber} · ${formatDistance(nearest.distanceKm)}`
+                      : 'No free ambulances with a driver right now'}
                 </AppText>
               </View>
               <Switch
@@ -201,14 +226,14 @@ export default function HandoverModal({
                   setAutoAssign(v);
                   if (v) setPickedVehicleId(undefined);
                 }}
-                disabled={isSubmitting}
+                disabled={isSubmitting || vehicles.length === 0}
               />
             </View>
 
             {!autoAssign && (
               <View style={{ marginTop: 12 }}>
                 <AppText size={12} bold muted style={styles.sectionLabel}>
-                  REPLACEMENT VEHICLE (OPTIONAL)
+                  CHOOSE A NEARBY FREE AMBULANCE
                 </AppText>
                 {loadingVehicles ? (
                   <ActivityIndicator color={colors.primary} />
@@ -218,7 +243,8 @@ export default function HandoverModal({
                   </AppText>
                 ) : vehicles.length === 0 ? (
                   <AppText size={13} muted>
-                    No other available drivers checked in. Case will return to dispatch.
+                    No other free ambulances with a checked-in driver are nearby. Stay with the case
+                    or call dispatch.
                   </AppText>
                 ) : (
                   vehicles.map((v) => {
@@ -239,19 +265,44 @@ export default function HandoverModal({
                         }
                         disabled={isSubmitting}
                       >
-                        <AppText size={14} bold={active}>
-                          {v.registrationNumber}
-                        </AppText>
-                        <AppText size={12} muted style={{ marginTop: 2 }}>
-                          {v.currentDriver?.name ?? 'Driver'}
-                          {v.currentEmt ? ` · EMT ${v.currentEmt.name}` : ''}
-                        </AppText>
+                        <View style={styles.vehicleRow}>
+                          <View style={{ flex: 1 }}>
+                            <AppText size={14} bold={active}>
+                              {v.registrationNumber}
+                            </AppText>
+                            <AppText size={12} muted style={{ marginTop: 2 }}>
+                              {v.currentDriver?.name ?? 'Driver'}
+                              {v.currentEmt ? ` · EMT ${v.currentEmt.name}` : ''}
+                              {v.lastLocationName ? ` · ${v.lastLocationName}` : ''}
+                            </AppText>
+                          </View>
+                          <View
+                            style={[
+                              styles.distancePill,
+                              { backgroundColor: active ? colors.primary : colors.noteBg },
+                            ]}
+                          >
+                            <AppText
+                              size={11}
+                              bold
+                              color={active ? colors.onPrimary : colors.primary}
+                            >
+                              {formatDistance(v.distanceKm)}
+                            </AppText>
+                          </View>
+                        </View>
                       </TouchableOpacity>
                     );
                   })
                 )}
               </View>
             )}
+
+            {!loadingVehicles && vehicles.length === 0 ? (
+              <AppText size={13} color={colors.danger} style={{ marginTop: 12 }}>
+                A receiving ambulance is required so the case stays active for patients and the log.
+              </AppText>
+            ) : null}
           </ScrollView>
 
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
@@ -261,7 +312,7 @@ export default function HandoverModal({
               disabled={isSubmitting}
             >
               <AppText size={15} bold>
-                Cancel
+                Keep case
               </AppText>
             </TouchableOpacity>
             <TouchableOpacity
@@ -279,7 +330,7 @@ export default function HandoverModal({
                 <>
                   <Ionicons name="swap-horizontal" size={18} color={colors.onPrimary} />
                   <AppText size={15} bold color={colors.onPrimary}>
-                    Confirm handover
+                    Transfer case
                   </AppText>
                 </>
               )}
@@ -324,6 +375,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  vehicleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  distancePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   noteInput: {
     borderWidth: 1,

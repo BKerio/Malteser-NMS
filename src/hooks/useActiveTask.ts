@@ -45,10 +45,12 @@ export function useActiveTask() {
 
     socket.on('task:assigned', onTaskEvent);
     socket.on('task:updated', onTaskEvent);
+    socket.on('task:handed_over', onTaskEvent);
 
     return () => {
       socket.off('task:assigned', onTaskEvent);
       socket.off('task:updated', onTaskEvent);
+      socket.off('task:handed_over', onTaskEvent);
     };
   }, [token, fetchTask]);
 

@@ -1,14 +1,22 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import client from './client';
 import type {
   ApiResponse,
   PaginatedMeta,
+  PartnerAmbulance,
   PatientCareReport,
   Task,
   TaskHistoryItem,
   User,
   VehicleWithCrew,
 } from '@/types/api';
+import {
+  clearPendingCheckIn,
+  getPendingCheckIn,
+  savePendingCheckIn,
+  type PendingCheckIn,
+} from '@/stores/pendingCheckIn';
 
 export async function login(email: string, passwordRaw: string) {
   const res = await client.post<ApiResponse<{ token: string; user: User }>>('/auth/login', {
@@ -99,54 +107,148 @@ export async function getAgencyVehicles(): Promise<VehicleWithCrew[]> {
   return res.data.data;
 }
 
+export async function getPartnerAmbulances(): Promise<PartnerAmbulance[]> {
+  const res = await client.get<ApiResponse<PartnerAmbulance[]>>('/fleet/partner-ambulances');
+  const payload = res.data?.data ?? (res.data as unknown);
+  return Array.isArray(payload) ? payload : [];
+}
+
 export async function getMyCheckIn(): Promise<VehicleWithCrew | null> {
   const res = await client.get<ApiResponse<VehicleWithCrew | null>>('/fleet/my-checkin');
   return res.data.data;
 }
 
-/**
- * Capture a selfie + GPS (+ place name), then check in to a vehicle.
- * Backend requires multipart: lat, lng, optional locationName (before file), then file.
- */
-export async function checkInToVehicle(vehicleId: string): Promise<VehicleWithCrew> {
-  const cam = await ImagePicker.requestCameraPermissionsAsync();
-  if (!cam.granted) throw new Error('Camera permission is required to check in.');
+async function persistSelfieLocally(photo: {
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+}): Promise<{ uri: string; name: string; type: string }> {
+  const name =
+    photo.fileName?.endsWith('.jpg') || photo.fileName?.endsWith('.jpeg')
+      ? photo.fileName
+      : `checkin-${Date.now()}.jpg`;
+  const type = photo.mimeType ?? 'image/jpeg';
+  const dest = `${FileSystem.documentDirectory}${name}`;
 
-  const shot = await ImagePicker.launchCameraAsync({
-    cameraType: ImagePicker.CameraType.front,
-    quality: 0.6,
-    allowsEditing: false,
-  });
-  if (shot.canceled) throw new Error('Check-in selfie is required.');
-  const photo = shot.assets[0];
-
-  const { getCurrentCoords, reverseGeocodePlace } = await import('@/utils/location');
-  const coords = await getCurrentCoords();
-  // Prefer a real place name; backend will also reverse-geocode if this is null
-  let placeName: string | null = null;
   try {
-    placeName = await reverseGeocodePlace(coords.lat, coords.lng);
+    const existing = await FileSystem.getInfoAsync(dest);
+    if (existing.exists) {
+      await FileSystem.deleteAsync(dest, { idempotent: true });
+    }
+    await FileSystem.copyAsync({ from: photo.uri, to: dest });
+    return { uri: dest, name, type };
   } catch {
-    placeName = null;
+    // Fall back to the picker URI if copy fails (still works when JS didn't remount)
+    return { uri: photo.uri, name, type };
+  }
+}
+
+async function submitCheckInMultipart(pending: PendingCheckIn): Promise<VehicleWithCrew> {
+  if (pending.lat == null || pending.lng == null || !pending.selfieUri) {
+    throw new Error('Check-in is incomplete. Please take your selfie again.');
   }
 
-  // Text fields must come before the file (server reads them from the same stream)
   const form = new FormData();
-  form.append('lat', String(coords.lat));
-  form.append('lng', String(coords.lng));
-  if (placeName) form.append('locationName', placeName);
+  form.append('lat', String(pending.lat));
+  form.append('lng', String(pending.lng));
+  if (pending.locationName) form.append('locationName', pending.locationName);
   form.append('file', {
-    uri: photo.uri,
-    name: photo.fileName ?? `checkin-${Date.now()}.jpg`,
-    type: photo.mimeType ?? 'image/jpeg',
+    uri: pending.selfieUri,
+    name: pending.selfieName ?? `checkin-${Date.now()}.jpg`,
+    type: pending.selfieType ?? 'image/jpeg',
   } as any);
 
   const res = await client.post<ApiResponse<VehicleWithCrew>>(
-    `/fleet/${vehicleId}/checkin`,
+    `/fleet/${pending.vehicleId}/checkin`,
     form,
     { timeout: 60000, transformRequest: (data) => data }
   );
+
+  if (pending.selfieUri.startsWith(FileSystem.documentDirectory ?? 'file://')) {
+    FileSystem.deleteAsync(pending.selfieUri, { idempotent: true }).catch(() => {});
+  }
+  await clearPendingCheckIn();
   return res.data.data;
+}
+
+/**
+ * If a previous attempt already captured GPS + selfie (e.g. before an Android remount),
+ * finish the upload without opening the camera again.
+ */
+export async function resumePendingCheckInUpload(): Promise<VehicleWithCrew | null> {
+  const pending = await getPendingCheckIn();
+  if (!pending?.selfieUri || pending.lat == null || pending.lng == null) return null;
+  return submitCheckInMultipart(pending);
+}
+
+/**
+ * Capture GPS first (while the app is still in foreground), then selfie, then upload.
+ * Progress is persisted so Android camera remounts don't lose the check-in.
+ */
+export async function checkInToVehicle(
+  vehicleId: string,
+  opts?: { registrationNumber?: string }
+): Promise<VehicleWithCrew> {
+  let pending = await savePendingCheckIn({
+    vehicleId,
+    registrationNumber: opts?.registrationNumber,
+  });
+
+  // 1) Location before camera — survives remount and shortens post-selfie wait
+  if (pending.lat == null || pending.lng == null) {
+    const { getCurrentCoords, reverseGeocodePlace } = await import('@/utils/location');
+    const coords = await getCurrentCoords();
+    let placeName: string | null = null;
+    try {
+      placeName = await reverseGeocodePlace(coords.lat, coords.lng);
+    } catch {
+      placeName = null;
+    }
+    pending = await savePendingCheckIn({
+      vehicleId,
+      registrationNumber: opts?.registrationNumber ?? pending.registrationNumber,
+      lat: coords.lat,
+      lng: coords.lng,
+      locationName: placeName,
+    });
+  }
+
+  // 2) Selfie — may remount the app on Android; URI is copied to documentDirectory
+  if (!pending.selfieUri) {
+    const cam = await ImagePicker.requestCameraPermissionsAsync();
+    if (!cam.granted) {
+      throw new Error('Camera permission is required to check in.');
+    }
+
+    const shot = await ImagePicker.launchCameraAsync({
+      cameraType: ImagePicker.CameraType.front,
+      quality: 0.55,
+      allowsEditing: false,
+      exif: false,
+    });
+
+    if (shot.canceled || !shot.assets?.[0]) {
+      // Keep GPS pending so the user can finish with one more selfie tap
+      throw new Error(
+        'Selfie was not saved — the camera may have closed the app. Tap check-in again to finish.'
+      );
+    }
+
+    const saved = await persistSelfieLocally(shot.assets[0]);
+    pending = await savePendingCheckIn({
+      vehicleId,
+      registrationNumber: opts?.registrationNumber ?? pending.registrationNumber,
+      lat: pending.lat,
+      lng: pending.lng,
+      locationName: pending.locationName,
+      selfieUri: saved.uri,
+      selfieName: saved.name,
+      selfieType: saved.type,
+    });
+  }
+
+  // 3) Upload
+  return submitCheckInMultipart(pending);
 }
 
 export async function checkOutFromVehicle(vehicleId: string): Promise<VehicleWithCrew> {
@@ -161,6 +263,10 @@ export interface AssignableCrewMember {
   name: string;
   phone?: string | null;
   role: 'EMT' | 'NURSE';
+  /** AVAILABLE = free to assign; TAKEN = already on another (or this) vehicle */
+  status?: 'AVAILABLE' | 'TAKEN';
+  assignedVehicleId?: string | null;
+  assignedVehicleRegistration?: string | null;
 }
 
 export async function getAssignableCrew(): Promise<AssignableCrewMember[]> {
@@ -176,11 +282,17 @@ export async function assignVehicleCrew(
   return res.data.data;
 }
 
-export async function getAvailableHandoverVehicles(
-  excludeVehicleId?: string
-): Promise<VehicleWithCrew[]> {
+export async function getAvailableHandoverVehicles(opts?: {
+  excludeVehicleId?: string;
+  lat?: number | null;
+  lng?: number | null;
+}): Promise<VehicleWithCrew[]> {
+  const params: Record<string, string> = {};
+  if (opts?.excludeVehicleId) params.excludeVehicleId = opts.excludeVehicleId;
+  if (opts?.lat != null && Number.isFinite(opts.lat)) params.lat = String(opts.lat);
+  if (opts?.lng != null && Number.isFinite(opts.lng)) params.lng = String(opts.lng);
   const res = await client.get<ApiResponse<VehicleWithCrew[]>>('/fleet/available-for-handover', {
-    params: excludeVehicleId ? { excludeVehicleId } : undefined,
+    params: Object.keys(params).length ? params : undefined,
   });
   return res.data.data;
 }
@@ -190,7 +302,12 @@ export async function handoverTask(
   data: { reason: string; newVehicleId?: string; autoAssign?: boolean }
 ) {
   const res = await client.post<
-    ApiResponse<{ cancelled: Task; newTask: Task | null; checkedOutVehicleId: string }>
+    ApiResponse<{
+      handedOver?: Task;
+      cancelled: Task;
+      newTask: Task | null;
+      checkedOutVehicleId: string;
+    }>
   >(`/tasks/${taskId}/reassign`, data);
   return res.data.data;
 }

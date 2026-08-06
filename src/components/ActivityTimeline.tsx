@@ -62,7 +62,13 @@ export default function ActivityTimeline({
                 size={15}
                 bold={active || done}
                 muted={upcoming || skipped}
-                color={item.status === 'CANCELLED' ? colors.danger : undefined}
+                color={
+                  item.status === 'CANCELLED'
+                    ? colors.danger
+                    : item.status === 'HANDED_OVER'
+                      ? colors.primary
+                      : undefined
+                }
               >
                 {item.label}
               </AppText>

@@ -174,19 +174,20 @@ export default function AssignmentScreen() {
       });
       setShowHandover(false);
       await Promise.all([refresh(), refreshCheckIn()]);
+      const receiver = result.newTask?.vehicle?.registrationNumber;
       Toast.show({
         type: 'success',
-        text1: 'Handover complete',
-        text2: result.newTask
-          ? 'Replacement crew assigned. You have been checked out.'
-          : 'Case returned to dispatch. You have been checked out.',
+        text1: 'Case transferred',
+        text2: receiver
+          ? `Passed to ${receiver}. You’re checked out — the case stays open for them.`
+          : 'Case returned to dispatch. You’re checked out.',
         position: 'bottom',
         bottomOffset: 90,
       });
     } catch (err) {
       Toast.show({
         type: 'error',
-        text1: 'Handover failed',
+        text1: 'Couldn’t transfer the case',
         text2: getErrorMessage(err),
         position: 'bottom',
         bottomOffset: 90,
@@ -442,7 +443,7 @@ export default function AssignmentScreen() {
               >
                 <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
                 <AppText size={15} bold>
-                  Handover / release case
+                  Transfer case to nearby unit
                 </AppText>
               </TouchableOpacity>
             )}
@@ -474,6 +475,8 @@ export default function AssignmentScreen() {
           visible={showHandover}
           caseNumber={task.incident.caseNumber}
           currentVehicleId={task.vehicleId}
+          referenceLat={myVehicle?.lastLat ?? task.incident.lat}
+          referenceLng={myVehicle?.lastLng ?? task.incident.lng}
           isSubmitting={isHandingOver}
           onClose={() => setShowHandover(false)}
           onConfirm={handleHandover}

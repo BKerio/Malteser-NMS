@@ -8,7 +8,8 @@ export type TaskStatus =
   | 'PATIENT_PICKED'
   | 'AT_HOSPITAL'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'HANDED_OVER';
 
 export interface User {
   id: string;
@@ -23,6 +24,21 @@ export interface Vehicle {
   id: string;
   registrationNumber: string;
   imei: string;
+}
+
+/** Reference-only ambulance with no GPS tracker (partner / county capacity). */
+export interface PartnerAmbulance {
+  id: string;
+  agencyId: string | null;
+  agency?: { id: string; name: string } | null;
+  registrationNumber: string;
+  vehicleType?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  baseLocation?: string | null;
+  capacity?: string | null;
+  notes?: string | null;
+  isActive: boolean;
 }
 
 export interface CrewMemberRef {
@@ -42,6 +58,8 @@ export interface VehicleWithCrew extends Vehicle {
   checkInLat?: number | null;
   checkInLng?: number | null;
   checkedInAt?: string | null;
+  /** Present on nearby handover candidates (km from releasing unit / scene). */
+  distanceKm?: number | null;
   currentDriver?: CrewMemberRef | null;
   currentEmt?: CrewMemberRef | null;
   currentNurse?: CrewMemberRef | null;
@@ -65,6 +83,8 @@ export interface TaskHistoryItem {
   completedAt?: string | null;
   cancelledAt?: string | null;
   cancelReason?: string | null;
+  handedOverAt?: string | null;
+  handoverReason?: string | null;
   pcrCount?: number;
   lastPcrAt?: string | null;
   incidentId: string;
@@ -154,6 +174,9 @@ export interface Task {
   completedAt?: string | null;
   cancelledAt?: string | null;
   cancelReason?: string | null;
+  handedOverAt?: string | null;
+  handoverReason?: string | null;
+  previousTaskId?: string | null;
   incidentId: string;
   vehicleId: string;
   driverId: string;
