@@ -3,7 +3,7 @@ export function decodePolyline(encoded: string): Array<{ latitude: number; longi
   const points: Array<{ latitude: number; longitude: number }> = [];
   let index = 0;
   let lat = 0;
-  let lng = 0;..
+  let lng = 0;
 
   while (index < encoded.length) {
     let result = 0;
