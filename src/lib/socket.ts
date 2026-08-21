@@ -38,7 +38,7 @@ export async function connectSocket(userId: string, role: Role): Promise<Socket>
     socketBaseUrl = null;
   }
 
-  const s = getSocket();,,,,
+  const s = getSocket();
   const token = await getStoredToken();
 
   if (s.connected) {
