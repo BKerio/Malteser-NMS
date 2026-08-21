@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   footerItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center',kk
     gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
