@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { User } from '@/types/api';
 import { isResponderRole } from '@/types/api';
-import { login as apiLogin } from '@/api/responder';
+import { requestLoginOtp, verifyLoginOtp } from '@/api/responder';
 import { getStoredToken, getStoredUser, saveAuth, clearAuth } from '@/stores/authStorage';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 
@@ -9,7 +9,10 @@ interface AuthContextValue {
   token: string | null;
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** Step 1: send a 6-digit SMS code to this phone. Returns how long it's valid for. */
+  requestOtp: (phone: string) => Promise<{ expiresInSeconds: number }>;
+  /** Step 2: verify the code and complete sign-in. */
+  verifyOtp: (phone: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -37,8 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const result = await apiLogin(email, password);
+  const requestOtp = useCallback(async (phone: string) => {
+    return requestLoginOtp(phone);
+  }, []);
+
+  const verifyOtp = useCallback(async (phone: string, code: string) => {
+    const result = await verifyLoginOtp(phone, code);
 
     if (!isResponderRole(result.user.role)) {
       throw new Error('This app is for field responders only (Driver, EMT, Nurse).');
@@ -59,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ token, user, isLoading, requestOtp, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

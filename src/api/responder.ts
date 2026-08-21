@@ -18,10 +18,20 @@ import {
   type PendingCheckIn,
 } from '@/stores/pendingCheckIn';
 
-export async function login(email: string, passwordRaw: string) {
-  const res = await client.post<ApiResponse<{ token: string; user: User }>>('/auth/login', {
-    email,
-    passwordRaw,
+/** Sends a 6-digit SMS code to an existing responder account's phone. */
+export async function requestLoginOtp(phone: string): Promise<{ phone: string; expiresInSeconds: number }> {
+  const res = await client.post<ApiResponse<{ phone: string; expiresInSeconds: number }>>(
+    '/auth/otp/request',
+    { phone }
+  );
+  return res.data.data;
+}
+
+/** Verifies the code and returns a signed session, same shape as the old password login. */
+export async function verifyLoginOtp(phone: string, code: string) {
+  const res = await client.post<ApiResponse<{ token: string; user: User }>>('/auth/otp/verify', {
+    phone,
+    code,
   });
   return res.data.data;
 }

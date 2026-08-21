@@ -17,7 +17,8 @@ export interface User {
   name: string;
   role: Role;
   agencyId: string;
-  phone?: string;
+  /** Normalized MSISDN — also the identifier used for OTP login. */
+  phone: string;
 }
 
 export interface Vehicle {

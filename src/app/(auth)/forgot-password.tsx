@@ -11,10 +11,12 @@ export default function ForgotPasswordScreen() {
   return (
     <AuthWrapper>
       <View style={styles.header}>
-        <Ionicons name="key-outline" size={40} color={colors.primary} />
-        <Text style={[styles.title, { color: colors.text }]}>Password reset</Text>
+        <Ionicons name="chatbox-ellipses-outline" size={40} color={colors.primary} />
+        <Text style={[styles.title, { color: colors.text }]}>Not receiving your code?</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Contact your agency administrator or dispatcher to reset your responder account password.
+          Sign-in codes are sent by SMS to the phone number on file for your account. If you've
+          changed numbers or aren't receiving the code, contact your agency administrator or
+          dispatcher to update your account.
         </Text>
       </View>
       <TouchableOpacity
