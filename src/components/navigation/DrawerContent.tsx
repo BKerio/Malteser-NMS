@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 14,
+    paddingVertical: 14,kkk
     paddingHorizontal: 12,
   },
   footerLabel: { fontSize: 15, fontWeight: '600' },
