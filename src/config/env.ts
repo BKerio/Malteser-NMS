@@ -236,4 +236,3 @@ export function getGoogleMapsKey(): string | null {
   const key = (process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || extra.googleMapsKey || '').trim();
   return key || null;
 }
-uu
