@@ -234,5 +234,5 @@ export function getSocketUrl(): string {
 /** Same key as web `VITE_GOOGLE_MAPS_KEY` — enable Directions + Maps SDK. */
 export function getGoogleMapsKey(): string | null {
   const key = (process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || extra.googleMapsKey || '').trim();
-  return key || null;
+  return key || null;gg
 }
